@@ -62,7 +62,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   encounter: null,
 
-  pushLog: (entry) => set((state) => ({ log: [...state.log, `> ${entry}`] })),
+  pushLog: (entry) => set((state) => ({ log: [...state.log, entry] })),
 
   startEncounter: (encounter) => set({ encounter, log: [], inBranch: false, branchState: null }),
 

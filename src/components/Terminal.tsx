@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useGameStore } from "../state/useGameStore"
 import { tutorialEncounter } from "../data/tutorialEncounter"
 
@@ -8,18 +8,29 @@ function LogLine({ line }: { line: string }) {
   let className = ""
   let display = line
 
-  if (line.startsWith("dm::")) {
-    className = "text-purple-400"
-    display = line.replace("dm::", "").trim()
+  // New: parse for actor and action
+  // Format: actor::action::message
+  const parts = line.split("::")
+  if (parts.length >= 3) {
+    const actor = parts[0].trim()
+    const action = parts[1].trim()
+    const message = parts.slice(2).join("::").trim()
+    if (actor.toLowerCase() === "root" || actor.toLowerCase() === "player") {
+      className = "text-blue-400"
+      display = `Root: ${action} ${message}`
+    } else if (actor.toLowerCase() === "training dummy" || actor.toLowerCase() === "enemy") {
+      className = "text-red-400"
+      display = `Training Dummy: ${action} ${message}`
+    } else if (actor.toLowerCase() === "dm") {
+      className = "text-purple-400"
+      display = message
+    } else {
+      className = "text-green-400"
+      display = `${actor}: ${action} ${message}`
+    }
+  } else if (line.startsWith(">")) {
+    className = "text-yellow-300"
   } else if (
-    line.startsWith("exploit::") ||
-    line.startsWith("patch::") ||
-    line.startsWith("counterattack::")
-  ) {
-    className = "text-red-400"
-    display = line.replace(/^\w+::/, "").trim()
-  } else if (
-    line.startsWith(">") ||
     line.includes("set::") ||
     line.includes("usage::") ||
     line.includes("error::")
@@ -45,7 +56,7 @@ export default function Terminal() {
   const target = useGameStore((s) => s.target)
   const updateEnemy = useGameStore((s) => s.updateEnemy)
   const updatePlayer = useGameStore((s) => s.updatePlayer)
-  const nextTurn = useGameStore((s) => s.nextTurn)
+  const advanceTurn = useGameStore((s) => s.advanceTurn)
 
   useEffect(() => {
     pushLog("dm:: Netspace interface initialised. Awaiting protocol engagement.")
@@ -63,7 +74,6 @@ export default function Terminal() {
     setSuggestion("")
 
     if (!command) return
-    pushLog(`command:: ${raw}`)
 
     const completeEnemyTurn = () => {
       setTimeout(() => {
@@ -117,9 +127,9 @@ export default function Terminal() {
         const damage = 30
         const newIntegrity = Math.max(0, foe.integrity - damage)
         updateEnemy(foe.name, { integrity: newIntegrity })
-        pushLog(`exploit:: -${damage} integrity to ${foe.name}`)
+        pushLog(`Root::exploit:: -${damage} integrity to ${foe.name}`)
         if (newIntegrity === 0) pushLog(`dm:: ${foe.name} collapses. Training sequence successful.`)
-
+        advanceTurn()
         completeEnemyTurn()
         break
       }
@@ -130,8 +140,9 @@ export default function Terminal() {
           const heal = 20
           const newIntegrity = Math.min(100, player.integrity + heal)
           updatePlayer({ integrity: newIntegrity })
-          pushLog("patch:: +20 integrity")
+          pushLog(`Root::patch:: +20 integrity`)
         }
+        advanceTurn()
         completeEnemyTurn()
         break
       }
@@ -169,8 +180,8 @@ export default function Terminal() {
       const retaliation = 10
       const newIntegrity = Math.max(0, state.player.integrity - retaliation)
       state.updatePlayer({ integrity: newIntegrity })
-      state.pushLog(`counterattack:: ${foe.name} hits for ${retaliation}`)
-      state.nextTurn()
+      state.pushLog(`Training Dummy::counterattack:: hits Root for ${retaliation}`)
+      state.advanceTurn()
     }
   }
 
@@ -255,16 +266,20 @@ export default function Terminal() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            className={`w-full bg-black border border-green-700 text-green-400 p-2 outline-none relative z-10`}
+            className={`w-full bg-black border border-green-700 text-green-400 p-2 outline-none relative z-10 font-mono`}
             placeholder=">"
+            style={{ position: 'relative', background: 'transparent' }}
           />
           {suggestion && input && (
-            <div className="absolute top-0 left-0 w-full h-full flex items-center px-2 text-green-600 opacity-30 pointer-events-none select-none z-0 whitespace-pre">
-              {input}
+            <div
+              className="absolute top-0 left-0 w-full h-full flex items-center px-2 pointer-events-none select-none z-0 whitespace-pre font-mono"
+              style={{ color: 'rgba(34,197,94,0.6)' }} // Tailwind green-600 at 60% opacity
+            >
+              <span className="invisible">{input}</span>
               <span className="opacity-60">
                 {suggestion.slice(input.split(" ").slice(-1)[0].length)}
+                <span className="ml-2 text-xs text-green-500">[⇥]</span>
               </span>
-              <span className="ml-2 text-xs text-green-500">[⇥]</span>
             </div>
           )}
         </div>

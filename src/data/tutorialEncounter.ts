@@ -3,7 +3,7 @@ import type { Encounter } from "../state/useGameStore"
 export const tutorialEncounter: Encounter = {
   id: "tutorial-001",
   name: "Boot Sequence",
-  description: "Training protocol active. Engage dummy. Learn subsystems.",
+  description: "Training protocol active. Scan your surroundings. Learn subsystems.",
   turn: 1,
   enemies: [
     {

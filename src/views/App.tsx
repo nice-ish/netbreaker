@@ -1,7 +1,6 @@
 import React from "react";
 import Terminal from "../components/Terminal";
 import { useGameStore } from "../state/useGameStore"
-import "../index.css"
 
 export default function App() {
   const log = useGameStore((state) => state.log)
