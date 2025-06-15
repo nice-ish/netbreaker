@@ -242,7 +242,7 @@ export default function Terminal() {
   }
 
   return (
-    <div className="bg-black text-green-400 font-mono h-screen p-4 flex flex-col">
+    <div className="bg-black text-green-400 font-mono h-full p-4 flex flex-col relative">
       <div className="flex-1 overflow-y-auto space-y-1">
         {!encounter && <p>Welcome to Netbreaker. Type <code>start</code> to begin tutorial.</p>}
 
@@ -259,43 +259,45 @@ export default function Terminal() {
         )}
       </div>
 
-      <form onSubmit={handleInput} className="mt-2">
-        <div className="relative">
-          <input
-            autoFocus
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className={`w-full bg-black border border-green-700 text-green-400 p-2 outline-none relative z-10 font-mono`}
-            placeholder=">"
-            style={{ position: 'relative', background: 'transparent' }}
-          />
-          {suggestion && input && (
-            <div
-              className="absolute top-0 left-0 w-full h-full flex items-center px-2 pointer-events-none select-none z-0 whitespace-pre font-mono"
-              style={{ color: 'rgba(34,197,94,0.6)' }} // Tailwind green-600 at 60% opacity
+      {/* Sticky input and available commands */}
+      <div className="sticky bottom-0 bg-black z-20 border-t border-green-900 pt-2 pb-2">
+        <form onSubmit={handleInput} className="mb-2">
+          <div className="relative">
+            <input
+              autoFocus
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className={`w-full bg-black border border-green-700 text-green-400 p-2 outline-none relative z-10 font-mono`}
+              placeholder=">"
+              style={{ position: 'relative', background: 'transparent' }}
+            />
+            {suggestion && input && (
+              <div
+                className="absolute top-0 left-0 w-full h-full flex items-center px-2 pointer-events-none select-none z-0 whitespace-pre font-mono"
+                style={{ color: 'rgba(34,197,94,0.6)' }} // Tailwind green-600 at 60% opacity
+              >
+                <span className="invisible">{input}</span>
+                <span className="opacity-60">
+                  {suggestion.slice(input.split(" ").slice(-1)[0].length)}
+                  <span className="ml-2 text-xs text-green-500">[⇥]</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </form>
+        <div className="text-sm text-green-600">
+          <p>available:: {POSSIBLE_COMMANDS.join(" | ")}</p>
+          {encounter?.enemies.map((enemy) => (
+            <p
+              key={enemy.name}
+              className="cursor-pointer underline hover:text-green-300"
+              onClick={() => handleClickTarget(enemy.name)}
             >
-              <span className="invisible">{input}</span>
-              <span className="opacity-60">
-                {suggestion.slice(input.split(" ").slice(-1)[0].length)}
-                <span className="ml-2 text-xs text-green-500">[⇥]</span>
-              </span>
-            </div>
-          )}
+              → {enemy.name} ({enemy.integrity}%)
+            </p>
+          ))}
         </div>
-      </form>
-
-      <div className="mt-2 text-sm text-green-600">
-        <p>available:: {POSSIBLE_COMMANDS.join(" | ")}</p>
-        {encounter?.enemies.map((enemy) => (
-          <p
-            key={enemy.name}
-            className="cursor-pointer underline hover:text-green-300"
-            onClick={() => handleClickTarget(enemy.name)}
-          >
-            → {enemy.name} ({enemy.integrity}%)
-          </p>
-        ))}
       </div>
     </div>
   )
