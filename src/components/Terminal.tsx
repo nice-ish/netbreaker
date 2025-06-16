@@ -174,16 +174,42 @@ export default function Terminal() {
   }
 
   const simulateEnemyTurn = () => {
-    const state = useGameStore.getState()
-    const foe = state.encounter?.enemies[0]
-    if (foe && foe.integrity > 0) {
-      const retaliation = 10
-      const newIntegrity = Math.max(0, state.player.integrity - retaliation)
-      state.updatePlayer({ integrity: newIntegrity })
-      state.pushLog(`Training Dummy::counterattack:: hits Root for ${retaliation}`)
-      state.advanceTurn()
+  const state = useGameStore.getState()
+  const foe = state.encounter?.enemies[0]
+
+  if (foe && foe.integrity > 0) {
+    const retaliation = 10
+    const newIntegrity = Math.max(0, state.player.integrity - retaliation)
+    state.updatePlayer({ integrity: newIntegrity })
+    state.pushLog(`counterattack:: ${foe.name} hits for ${retaliation}`)
+
+    // 🔥 Add Bash if not already present
+    const hasBash = state.party?.some(p => p.name === 'Bash')
+    if (!hasBash) {
+      setTimeout(() => {
+        state.addPartyMember({
+          id: 'bash-1',
+          name: 'Bash',
+          class: 'Brute',
+          integrity: 100,
+          maxIntegrity: 100,
+          isPlayer: true,
+          stats: { logic: 1, force: 5, stability: 3, speed: 2 },
+          subsystems: ['Force', 'Crash', 'Branch', 'Merge'],
+          status: [],
+        })
+
+        state.pushLog("dm:: Proximity breach detected. Unauthorized kinetic signature inbound…")
+        setTimeout(() => state.pushLog("dm:: Reinforcement authorized by root protocol."), 1000)
+        setTimeout(() => state.pushLog("dm:: Bash // Class: Brute // has entered the field."), 2000)
+        setTimeout(() => state.pushLog("dm:: Bash joined your party."), 3000)
+      }, 500)
     }
+
+    state.nextTurn()
   }
+}
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Tab") {

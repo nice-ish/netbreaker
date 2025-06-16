@@ -9,9 +9,9 @@ export const tutorialEncounter: Encounter = {
     {
       id: "npc-0",
       name: "Training Dummy",
-      class: "None",
       integrity: 100,
-      stats: { intellect: 0, precision: 0, willpower: 0 },
+      maxIntegrity: 100,
+      stats: { logic: 0, force: 0, stability: 0, speed: 0 },
       subsystems: [],
       status: ["passive"],
     },

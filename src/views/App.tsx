@@ -3,11 +3,14 @@ import Terminal from "../components/Terminal";
 import { useGameStore } from "../state/useGameStore";
 
 export default function App() {
-  const player = useGameStore((state) => state.player);
+
   const encounter = useGameStore((state) => state.encounter);
+  const target = useGameStore((state) => state.target);
+  const player = useGameStore((state) => state.player);
+  const party = [player, ...useGameStore((state) => state.party)];
 
   // For now, party is just the player
-  const party = [player];
+
   const foes = encounter?.enemies || [];
 
   return (
@@ -43,7 +46,12 @@ export default function App() {
           {party.map((member) => (
             <div key={member.id} className="mb-3 p-2 rounded bg-neutral-950 border border-neutral-800">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-green-300">{member.name}</span>
+              <span className="font-semibold text-green-300">
+                {member.name}
+                {member.isPlayer && (
+                  <span className="ml-1 text-xs text-green-500">(you)</span>
+                )}
+              </span>
                 <span className="text-xs text-green-400">{member.class}</span>
               </div>
               <div className="flex items-center gap-2 mt-1">
@@ -65,7 +73,12 @@ export default function App() {
           {foes.map((foe) => (
             <div key={foe.id} className="mb-3 p-2 rounded bg-neutral-950 border border-neutral-800">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-red-300">{foe.name}</span>
+                <span className="font-semibold text-red-300">
+                  {foe.name}
+                  {target && foe.name.toLowerCase() === target.toLowerCase() && (
+                    <span className="ml-2" title="Targeted">🎯</span>
+                  )}
+                </span>
                 <span className="text-xs text-neutral-400">{foe.class}</span>
               </div>
               <div className="flex items-center gap-2 mt-1">

@@ -5,16 +5,19 @@ interface Character {
   name: string
   class: string
   integrity: number
+  maxIntegrity: number
+  isPlayer?: boolean
   stats: {
-    intellect: number
-    precision: number
-    willpower: number
+    logic: number
+    force: number
+    stability: number
+    speed: number
   }
   subsystems: string[]
   status: string[]
 }
 
-interface Encounter {
+export interface Encounter {
   id: string
   name: string
   enemies: Character[]
@@ -25,6 +28,8 @@ interface Encounter {
 interface GameState {
     log: string[]
     player: Character
+    party: Character[]
+    addPartyMember: (member: Character) => void
     encounter: Encounter | null
     inBranch: boolean
     branchState: GameState | null
@@ -32,7 +37,11 @@ interface GameState {
     setTarget: (name: string) => void
     updateEnemy: (name: string, changes: Partial<Character>) => void
     updatePlayer: (changes: Partial<Character>) => void
-
+    turnOrder: Character[]
+    currentTurnIndex: number
+    setTurnOrder: (order: Character[]) => void
+    nextTurn: () => void
+    getCurrentActor: () => Character | null
     pushLog: (entry: string) => void
     startEncounter: (encounter: Encounter) => void
     advanceTurn: () => void
@@ -49,13 +58,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     log: [],
     inBranch: false,
     branchState: null,
-
+    party: [],
     player: {
         id: 'user-1',
         name: 'Root',
         class: 'Promptweaver',
         integrity: 100,
-        stats: { intellect: 4, precision: 3, willpower: 2 },
+        maxIntegrity: 100,
+        isPlayer: true,
+        stats: { logic: 4, force: 3, stability: 2, speed: 2 },
         subsystems: ['Exploit', 'Patch', 'Branch', 'Merge'],
         status: [],
     },
@@ -63,8 +74,26 @@ export const useGameStore = create<GameState>((set, get) => ({
   encounter: null,
 
   pushLog: (entry) => set((state) => ({ log: [...state.log, entry] })),
+  
+  addPartyMember: (member) => set((state) => ({
+    party: [...state.party, member],
+    })),
 
-  startEncounter: (encounter) => set({ encounter, log: [], inBranch: false, branchState: null }),
+startEncounter: (encounter) => {
+    const { player, party, pushLog } = get();
+    const allActors = [player, ...party, ...encounter.enemies];
+    
+    const sorted = allActors.sort((a, b) => b.stats.speed - a.stats.speed);
+    
+    set({
+        encounter,
+        turnOrder: sorted,
+        currentTurnIndex: 0,
+    });
+    
+    pushLog(`dm:: Turn order established: ${sorted.map(c => c.name).join(" → ")}`);
+    },
+      
 
   advanceTurn: () => set((state) => {
     if (!state.encounter) return state
@@ -99,6 +128,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   merge: () => set({ inBranch: false, branchState: null }),
+
+  turnOrder: [] as Character[],
+    currentTurnIndex: 0,
+
+    setTurnOrder: (order: Character[]) => set({ turnOrder: order }),
+    nextTurn: () => {
+    const { turnOrder, currentTurnIndex } = get();
+    const nextIndex = (currentTurnIndex + 1) % turnOrder.length;
+    set({ currentTurnIndex: nextIndex });
+    },
+    getCurrentActor: () => get().turnOrder[get().currentTurnIndex],
+
 
   // inside useGameStore
 attackTarget: () => {
