@@ -26,100 +26,192 @@ export interface Encounter {
 }
 
 interface GameState {
-    log: string[]
-    player: Character
-    party: Character[]
-    addPartyMember: (member: Character) => void
-    encounter: Encounter | null
-    inBranch: boolean
-    branchState: GameState | null
-    target: string | null
-    setTarget: (name: string) => void
-    updateEnemy: (name: string, changes: Partial<Character>) => void
-    updatePlayer: (changes: Partial<Character>) => void
-    turnOrder: Character[]
-    currentTurnIndex: number
-    setTurnOrder: (order: Character[]) => void
-    nextTurn: () => void
-    getCurrentActor: () => Character | null
-    pushLog: (entry: string) => void
-    startEncounter: (encounter: Encounter) => void
-    advanceTurn: () => void
-    resetGame: () => void
-    createBranch: () => void
-    rebase: () => void
-    merge: () => void
+  log: string[]
+  player: Character
+  party: Character[]
+  addPartyMember: (member: Character) => void
+  encounter: Encounter | null
+  inBranch: boolean
+  branchState: GameState | null
+  target: string | null
+  setTarget: (name: string) => void
+  updateEnemy: (name: string, changes: Partial<Character>) => void
+  updatePlayer: (changes: Partial<Character>) => void
+  turnOrder: Character[]
+  currentTurnIndex: number
+  setTurnOrder: (order: Character[]) => void
+  nextTurn: () => void
+  getCurrentActor: () => Character | null
+  pushLog: (entry: string) => void
+  startEncounter: (encounter: Encounter) => void
+  resetGame: () => void
+  createBranch: () => void
+  rebase: () => void
+  merge: () => void
+  hasSummonedBash: boolean
 }
-  
 
 export const useGameStore = create<GameState>((set, get) => ({
-    target: null as string | null,
-    setTarget: (name: string) => set({ target: name }),
-    log: [],
-    inBranch: false,
-    branchState: null,
-    party: [],
-    player: {
-        id: 'user-1',
-        name: 'Root',
-        class: 'Promptweaver',
-        integrity: 100,
-        maxIntegrity: 100,
-        isPlayer: true,
-        stats: { logic: 4, force: 3, stability: 2, speed: 2 },
-        subsystems: ['Exploit', 'Patch', 'Branch', 'Merge'],
-        status: [],
-    },
-
+  target: null,
+  setTarget: (name) => set({ target: name }),
+  log: [],
+  inBranch: false,
+  branchState: null,
+  party: [],
+  hasSummonedBash: false,
+  player: {
+    id: 'user-1',
+    name: 'Root',
+    class: 'Promptweaver',
+    integrity: 100,
+    maxIntegrity: 100,
+    isPlayer: true,
+    stats: { logic: 4, force: 3, stability: 2, speed: 2 },
+    subsystems: ['Exploit', 'Patch', 'Branch', 'Merge'],
+    status: [],
+  },
   encounter: null,
+  turnOrder: [],
+  currentTurnIndex: -1,
 
   pushLog: (entry) => set((state) => ({ log: [...state.log, entry] })),
-  
-  addPartyMember: (member) => set((state) => ({
-    party: [...state.party, member],
-    })),
 
-startEncounter: (encounter) => {
-    const { player, party, pushLog } = get();
-    const allActors = [player, ...party, ...encounter.enemies];
-    
-    const sorted = allActors.sort((a, b) => b.stats.speed - a.stats.speed);
-    
+  addPartyMember: (member) =>
+    set((state) => ({ party: [...state.party, member] })),
+
+  startEncounter: (encounter) => {
+    const { player, party, pushLog } = get()
+    const allActors = [player, ...party, ...encounter.enemies]
+    const sorted = allActors.sort((a, b) => b.stats.speed - a.stats.speed)
+
     set({
-        encounter,
-        turnOrder: sorted,
-        currentTurnIndex: 0,
-    });
-    
-    pushLog(`dm:: Turn order established: ${sorted.map(c => c.name).join(" → ")}`);
-    },
-      
+      encounter: { ...encounter, turn: 1 },
+      turnOrder: sorted,
+      currentTurnIndex: -1,
+      hasSummonedBash: false,
+    })
 
-  advanceTurn: () => set((state) => {
-    if (!state.encounter) return state
-    return {
-      encounter: {
-        ...state.encounter,
-        turn: state.encounter.turn + 1,
-      },
+    pushLog(`dm:: Turn order established: ${sorted.map(c => c.name).join(' → ')}`)
+
+    setTimeout(() => get().nextTurn(), 300)
+  },
+
+  nextTurn: () => {
+    const state = get()
+    let index = state.currentTurnIndex
+    const order = get().turnOrder
+
+    const getNextLivingActor = () => {
+      for (let i = 0; i < order.length; i++) {
+        index = (index + 1) % order.length
+        const actor = order[index]
+        if (actor.integrity > 0) return actor
+      }
+      return null
     }
-  }),
+
+    const actor = getNextLivingActor()
+    if (!actor) return
+
+    set({
+      currentTurnIndex: index,
+      encounter: state.encounter
+        ? { ...state.encounter, turn: state.encounter.turn + 1 }
+        : null,
+    })
+
+    if (actor.isPlayer) return // wait for player command
+
+    const player = get().player
+    const party = get().party
+    const enemies = get().encounter?.enemies || []
+    const targets = [player, ...party].filter(t => t.integrity > 0)
+
+    if (actor.name === 'Training Dummy') {
+      const target = targets[0]
+      if (target) {
+        const damage = 10
+        const newIntegrity = Math.max(0, target.integrity - damage)
+
+        if (target.id === player.id) {
+          get().updatePlayer({ integrity: newIntegrity })
+        } else {
+          const updatedParty = party.map(p =>
+            p.id === target.id ? { ...p, integrity: newIntegrity } : p
+          )
+          set({ party: updatedParty })
+        }
+
+        get().pushLog(`Training Dummy::thump:: -${damage} integrity to ${target.name}`)
+
+        if (!get().hasSummonedBash) {
+          const bash: Character = {
+            id: 'bash-1',
+            name: 'Bash',
+            class: 'Brute',
+            integrity: 100,
+            maxIntegrity: 100,
+            isPlayer: false, // ✅ AI-controlled
+            stats: { logic: 1, force: 5, stability: 3, speed: 2 },
+            subsystems: ['Force', 'Crash', 'Branch', 'Merge'],
+            status: [],
+          }
+
+          const newParty = [...party, bash]
+          const newOrder = [player, ...newParty, ...enemies].sort(
+            (a, b) => b.stats.speed - a.stats.speed
+          )
+          const newIndex = newOrder.findIndex(c => c.name === actor.name)
+
+          set({
+            party: newParty,
+            turnOrder: newOrder,
+            currentTurnIndex: newIndex,
+            hasSummonedBash: true,
+          })
+
+          get().pushLog("dm:: Proximity breach detected. Unauthorized kinetic signature inbound…")
+          setTimeout(() => get().pushLog("dm:: Reinforcement authorized by root protocol."), 1000)
+          setTimeout(() => get().pushLog("dm:: Bash // Class: Brute // has entered the field."), 2000)
+          setTimeout(() => get().pushLog("dm:: Bash joined your party."), 3000)
+        }
+      }
+    }
+
+    if (actor.name === 'Bash') {
+      const foe = enemies.find(f => f.name.toLowerCase() === (state.target || '').toLowerCase())
+      if (foe && foe.integrity > 0) {
+        const damage = 20
+        const newIntegrity = Math.max(0, foe.integrity - damage)
+        get().updateEnemy(foe.name, { integrity: newIntegrity })
+        get().pushLog(`Bash::force:: -${damage} integrity to ${foe.name}`)
+      } else {
+        get().pushLog("Bash::force:: no valid target")
+      }
+    }
+
+    setTimeout(() => get().nextTurn(), 1000)
+  },
 
   resetGame: () => set((state) => ({
     encounter: null,
     log: [],
     inBranch: false,
     branchState: null,
+    hasSummonedBash: false,
     player: {
       ...state.player,
       integrity: 100,
       status: [],
-    }
+    },
+    party: [],
+    turnOrder: [],
+    currentTurnIndex: -1,
   })),
 
   createBranch: () => set((state) => ({
     inBranch: true,
-    branchState: JSON.parse(JSON.stringify(state)), // deep clone
+    branchState: JSON.parse(JSON.stringify(state)),
   })),
 
   rebase: () => {
@@ -129,46 +221,10 @@ startEncounter: (encounter) => {
 
   merge: () => set({ inBranch: false, branchState: null }),
 
-  turnOrder: [] as Character[],
-    currentTurnIndex: 0,
+  setTurnOrder: (order: Character[]) => set({ turnOrder: order }),
+  getCurrentActor: () => get().turnOrder[get().currentTurnIndex],
 
-    setTurnOrder: (order: Character[]) => set({ turnOrder: order }),
-    nextTurn: () => {
-    const { turnOrder, currentTurnIndex } = get();
-    const nextIndex = (currentTurnIndex + 1) % turnOrder.length;
-    set({ currentTurnIndex: nextIndex });
-    },
-    getCurrentActor: () => get().turnOrder[get().currentTurnIndex],
-
-
-  // inside useGameStore
-attackTarget: () => {
-    set((state) => {
-      if (!state.encounter || !state.target) return {}
-      const enemies = state.encounter.enemies.map((enemy) => {
-        if (enemy.name === state.target) {
-          return { ...enemy, integrity: Math.max(0, enemy.integrity - 30) }
-        }
-        return enemy
-      })
-      return {
-        encounter: { ...state.encounter, enemies },
-        log: [...state.log, `exploit:: -30 integrity to ${state.target}`]
-      }
-    })
-  },
-  
-  patchSelf: () => {
-    set((state) => ({
-      player: {
-        ...state.player,
-        integrity: Math.min(100, state.player.integrity + 20)
-      },
-      log: [...state.log, "patch:: +20 integrity"]
-    }))
-  },
-
-  updateEnemy: (name: string, changes: Partial<Character>) =>
+  updateEnemy: (name, changes) =>
     set((state) => {
       if (!state.encounter) return {}
       const updatedEnemies = state.encounter.enemies.map((enemy) =>
@@ -178,23 +234,9 @@ attackTarget: () => {
         encounter: { ...state.encounter, enemies: updatedEnemies },
       }
     }),
-  
-  updatePlayer: (changes: Partial<Character>) =>
+
+  updatePlayer: (changes) =>
     set((state) => ({
       player: { ...state.player, ...changes },
     })),
-  
-  
-  branchTimeline: () => set((state) => ({
-    log: [...state.log, "branch:: timeline checkpoint created"]
-  })),
-  
-  mergeTimeline: () => set((state) => ({
-    log: [...state.log, "merge:: committed timeline"]
-  })),
-  
-  rebaseTimeline: () => set((state) => ({
-    log: [...state.log, "rebase:: reverted to previous checkpoint"]
-  }))
-  
 }))

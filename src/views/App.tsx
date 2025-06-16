@@ -16,7 +16,7 @@ export default function App() {
   return (
     <div className="h-screen w-full bg-neutral-950 text-green-400 font-mono flex flex-row">
       {/* Left Sidebar */}
-      <aside className="w-64 min-w-48 max-w-xs border-r border-neutral-800 bg-neutral-900 flex flex-col p-4">
+      <aside className=" min-w-48 max-w-xs border-r border-neutral-800 bg-neutral-900 flex flex-col p-4">
         <div className="mb-6">
           <h2 className="text-green-300 text-lg font-bold border-b border-green-900 pb-1 mb-2 uppercase tracking-widest">Location</h2>
           <div>
@@ -28,7 +28,7 @@ export default function App() {
       </aside>
 
       {/* Main Terminal Pane */}
-      <main className="flex-1 flex flex-col min-w-0 bg-black border-x border-neutral-800 h-screen">
+      <main className="w-max flex-1 flex flex-col min-w-0 bg-black border-x border-neutral-800 h-screen">
         <header className="px-6 py-2 border-b border-neutral-800 bg-neutral-900 flex items-center justify-between">
           <span className="text-green-300 font-bold tracking-widest text-lg">NETBREAKER</span>
           <span className="text-xs text-neutral-500">[Resize handle]</span>
@@ -39,7 +39,7 @@ export default function App() {
       </main>
 
       {/* Right Sidebar */}
-      <aside className="w-72 min-w-56 max-w-sm border-l border-neutral-800 bg-neutral-900 flex flex-col p-4">
+      <aside className=" min-w-56 max-w-sm border-l border-neutral-800 bg-neutral-900 flex flex-col p-4">
         {/* Party Section */}
         <div className="mb-6">
           <h2 className="text-blue-300 text-lg font-bold border-b border-blue-900 pb-1 mb-2 uppercase tracking-widest">Party</h2>

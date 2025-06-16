@@ -1,19 +1,26 @@
-import type { Encounter } from "../state/useGameStore"
+import { Encounter } from "../state/useGameStore"
 
 export const tutorialEncounter: Encounter = {
-  id: "tutorial-001",
-  name: "Boot Sequence",
-  description: "Training protocol active. Scan your surroundings. Learn subsystems.",
+  id: "tutorial-1",
+  name: "Training Protocol",
+  description: "A basic simulation with one dummy foe.",
   turn: 1,
   enemies: [
     {
-      id: "npc-0",
+      id: "dummy-1",
       name: "Training Dummy",
+      class: "Target",
       integrity: 100,
       maxIntegrity: 100,
-      stats: { logic: 0, force: 0, stability: 0, speed: 0 },
+      isPlayer: false, // ✅ THIS IS MISSING
+      stats: {
+        logic: 0,
+        force: 1,
+        stability: 1,
+        speed: 1,
+      },
       subsystems: [],
-      status: ["passive"],
-    },
-  ],
+      status: [],
+    }
+  ],  
 }

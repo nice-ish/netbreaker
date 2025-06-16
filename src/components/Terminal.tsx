@@ -8,8 +8,6 @@ function LogLine({ line }: { line: string }) {
   let className = ""
   let display = line
 
-  // New: parse for actor and action
-  // Format: actor::action::message
   const parts = line.split("::")
   if (parts.length >= 3) {
     const actor = parts[0].trim()
@@ -28,20 +26,12 @@ function LogLine({ line }: { line: string }) {
       className = "text-green-400"
       display = `${actor}: ${action} ${message}`
     }
-  } else if (line.startsWith(">")) {
-    className = "text-yellow-300"
-  } else if (
-    line.includes("set::") ||
-    line.includes("usage::") ||
-    line.includes("error::")
-  ) {
+  } else if (line.startsWith(">") || line.includes("set::") || line.includes("usage::") || line.includes("error::")) {
     className = "text-yellow-300"
   }
 
   return <p className={className}>{display}</p>
 }
-
-
 
 export default function Terminal() {
   const [input, setInput] = useState("")
@@ -56,7 +46,8 @@ export default function Terminal() {
   const target = useGameStore((s) => s.target)
   const updateEnemy = useGameStore((s) => s.updateEnemy)
   const updatePlayer = useGameStore((s) => s.updatePlayer)
-  const advanceTurn = useGameStore((s) => s.advanceTurn)
+  const advanceTurn = useGameStore((s) => s.nextTurn)
+  const addPartyMember = useGameStore((s) => s.addPartyMember)
 
   useEffect(() => {
     pushLog("dm:: Netspace interface initialised. Awaiting protocol engagement.")
@@ -75,12 +66,6 @@ export default function Terminal() {
 
     if (!command) return
 
-    const completeEnemyTurn = () => {
-      setTimeout(() => {
-        simulateEnemyTurn()
-      }, 300)
-    }
-
     switch (command) {
       case "start":
         start(tutorialEncounter)
@@ -88,6 +73,7 @@ export default function Terminal() {
         break
       case "status":
         pushLog(`integrity:: ${player.integrity}%`)
+        advanceTurn()
         break
       case "scan":
         if (encounter) {
@@ -96,6 +82,7 @@ export default function Terminal() {
         } else {
           pushLog("no encounter active")
         }
+        advanceTurn()
         break
       case "target":
         if (argument) {
@@ -109,6 +96,7 @@ export default function Terminal() {
         } else {
           pushLog("usage:: target <enemy>")
         }
+        advanceTurn()
         break
       case "who":
         if (target) {
@@ -118,6 +106,7 @@ export default function Terminal() {
         } else {
           pushLog("target:: none")
         }
+        advanceTurn()
         break
       case "exploit": {
         if (!target) return pushLog("error:: no target selected")
@@ -129,8 +118,8 @@ export default function Terminal() {
         updateEnemy(foe.name, { integrity: newIntegrity })
         pushLog(`Root::exploit:: -${damage} integrity to ${foe.name}`)
         if (newIntegrity === 0) pushLog(`dm:: ${foe.name} collapses. Training sequence successful.`)
+
         advanceTurn()
-        completeEnemyTurn()
         break
       }
       case "patch": {
@@ -143,20 +132,19 @@ export default function Terminal() {
           pushLog(`Root::patch:: +20 integrity`)
         }
         advanceTurn()
-        completeEnemyTurn()
         break
       }
       case "branch":
         pushLog("branch:: timeline checkpoint created")
-        completeEnemyTurn()
+        advanceTurn()
         break
       case "merge":
         pushLog("merge:: committed timeline")
-        completeEnemyTurn()
+        advanceTurn()
         break
       case "rebase":
         pushLog("rebase:: reverted to previous checkpoint")
-        completeEnemyTurn()
+        advanceTurn()
         break
       default:
         if (POSSIBLE_COMMANDS.includes(command) && argument) {
@@ -170,46 +158,9 @@ export default function Terminal() {
         } else {
           pushLog("unknown:: command not recognized")
         }
+        advanceTurn()
     }
   }
-
-  const simulateEnemyTurn = () => {
-  const state = useGameStore.getState()
-  const foe = state.encounter?.enemies[0]
-
-  if (foe && foe.integrity > 0) {
-    const retaliation = 10
-    const newIntegrity = Math.max(0, state.player.integrity - retaliation)
-    state.updatePlayer({ integrity: newIntegrity })
-    state.pushLog(`counterattack:: ${foe.name} hits for ${retaliation}`)
-
-    // 🔥 Add Bash if not already present
-    const hasBash = state.party?.some(p => p.name === 'Bash')
-    if (!hasBash) {
-      setTimeout(() => {
-        state.addPartyMember({
-          id: 'bash-1',
-          name: 'Bash',
-          class: 'Brute',
-          integrity: 100,
-          maxIntegrity: 100,
-          isPlayer: true,
-          stats: { logic: 1, force: 5, stability: 3, speed: 2 },
-          subsystems: ['Force', 'Crash', 'Branch', 'Merge'],
-          status: [],
-        })
-
-        state.pushLog("dm:: Proximity breach detected. Unauthorized kinetic signature inbound…")
-        setTimeout(() => state.pushLog("dm:: Reinforcement authorized by root protocol."), 1000)
-        setTimeout(() => state.pushLog("dm:: Bash // Class: Brute // has entered the field."), 2000)
-        setTimeout(() => state.pushLog("dm:: Bash joined your party."), 3000)
-      }, 500)
-    }
-
-    state.nextTurn()
-  }
-}
-
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Tab") {
@@ -285,7 +236,6 @@ export default function Terminal() {
         )}
       </div>
 
-      {/* Sticky input and available commands */}
       <div className="sticky bottom-0 bg-black z-20 border-t border-green-900 pt-2 pb-2">
         <form onSubmit={handleInput} className="mb-2">
           <div className="relative">
@@ -294,14 +244,14 @@ export default function Terminal() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              className={`w-full bg-black border border-green-700 text-green-400 p-2 outline-none relative z-10 font-mono`}
+              className="w-full bg-black border border-green-700 text-green-400 p-2 outline-none relative z-10 font-mono"
               placeholder=">"
               style={{ position: 'relative', background: 'transparent' }}
             />
             {suggestion && input && (
               <div
                 className="absolute top-0 left-0 w-full h-full flex items-center px-2 pointer-events-none select-none z-0 whitespace-pre font-mono"
-                style={{ color: 'rgba(34,197,94,0.6)' }} // Tailwind green-600 at 60% opacity
+                style={{ color: 'rgba(34,197,94,0.6)' }}
               >
                 <span className="invisible">{input}</span>
                 <span className="opacity-60">
