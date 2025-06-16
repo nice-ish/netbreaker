@@ -10,8 +10,8 @@ export const tutorialEncounter: Encounter = {
       id: "dummy-1",
       name: "Training Dummy",
       class: "Target",
-      integrity: 100,
-      maxIntegrity: 100,
+      integrity: 200,
+      maxIntegrity: 200,
       isPlayer: false, // ✅ THIS IS MISSING
       stats: {
         logic: 0,

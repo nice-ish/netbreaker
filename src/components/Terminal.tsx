@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react"
 import { useGameStore } from "../state/useGameStore"
+import { calculateDamage } from "../state/useGameStore"
 import { tutorialEncounter } from "../data/tutorialEncounter"
 
 const POSSIBLE_COMMANDS = ["start", "status", "scan", "target", "exploit", "patch", "branch", "merge", "rebase", "who"]
+const NON_TURN_COMMANDS = new Set(["start", "status", "scan", "target", "who"])
+
 
 function LogLine({ line }: { line: string }) {
   let className = ""
@@ -73,7 +76,6 @@ export default function Terminal() {
         break
       case "status":
         pushLog(`integrity:: ${player.integrity}%`)
-        advanceTurn()
         break
       case "scan":
         if (encounter) {
@@ -82,7 +84,6 @@ export default function Terminal() {
         } else {
           pushLog("no encounter active")
         }
-        advanceTurn()
         break
       case "target":
         if (argument) {
@@ -96,7 +97,6 @@ export default function Terminal() {
         } else {
           pushLog("usage:: target <enemy>")
         }
-        advanceTurn()
         break
       case "who":
         if (target) {
@@ -106,22 +106,21 @@ export default function Terminal() {
         } else {
           pushLog("target:: none")
         }
-        advanceTurn()
         break
       case "exploit": {
-        if (!target) return pushLog("error:: no target selected")
-        const foe = encounter?.enemies.find(f => f.name.toLowerCase() === target.toLowerCase())
-        if (!foe || foe.integrity <= 0) return pushLog("error:: target already destroyed")
-
-        const damage = 30
-        const newIntegrity = Math.max(0, foe.integrity - damage)
-        updateEnemy(foe.name, { integrity: newIntegrity })
-        pushLog(`Root::exploit:: -${damage} integrity to ${foe.name}`)
-        if (newIntegrity === 0) pushLog(`dm:: ${foe.name} collapses. Training sequence successful.`)
-
-        advanceTurn()
-        break
-      }
+          if (!target) return pushLog("error:: no target selected")
+          const foe = encounter?.enemies.find(f => f.name.toLowerCase() === target.toLowerCase())
+          if (!foe || foe.integrity <= 0) return pushLog("error:: target already destroyed")
+        
+          const damage = calculateDamage(player, "exploit")
+          const newIntegrity = Math.max(0, foe.integrity - damage)
+          updateEnemy(foe.name, { integrity: newIntegrity })
+          pushLog(`Root::exploit:: -${damage} integrity to ${foe.name}`)
+          if (newIntegrity === 0) pushLog(`dm:: ${foe.name} collapses. Training sequence successful.`)
+        
+          advanceTurn()
+          break
+        }
       case "patch": {
         if (player.integrity >= 100) {
           pushLog("patch:: integrity already full")
@@ -158,7 +157,9 @@ export default function Terminal() {
         } else {
           pushLog("unknown:: command not recognized")
         }
-        advanceTurn()
+        if (!NON_TURN_COMMANDS.has(command)) {
+          advanceTurn()
+        }
     }
   }
 

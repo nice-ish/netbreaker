@@ -51,6 +51,19 @@ interface GameState {
   hasSummonedBash: boolean
 }
 
+export function calculateDamage(attacker: Character, type: 'exploit' | 'force' | 'crash'): number {
+  switch (type) {
+    case 'exploit':
+      return 15 + attacker.stats.logic * 5
+    case 'force':
+      return 20 + attacker.stats.force * 6
+    case 'crash':
+      return 10 + attacker.stats.force * 3
+    default:
+      return 10
+  }
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   target: null,
   setTarget: (name) => set({ target: name }),
@@ -92,7 +105,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
 
     pushLog(`dm:: Turn order established: ${sorted.map(c => c.name).join(' → ')}`)
-
     setTimeout(() => get().nextTurn(), 300)
   },
 
@@ -120,7 +132,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         : null,
     })
 
-    if (actor.isPlayer) return // wait for player command
+    if (actor.isPlayer) return
 
     const player = get().player
     const party = get().party
@@ -128,7 +140,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const targets = [player, ...party].filter(t => t.integrity > 0)
 
     if (actor.name === 'Training Dummy') {
-      const target = targets[0]
+        const target = targets[Math.floor(Math.random() * targets.length)]
+
       if (target) {
         const damage = 10
         const newIntegrity = Math.max(0, target.integrity - damage)
@@ -151,7 +164,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             class: 'Brute',
             integrity: 100,
             maxIntegrity: 100,
-            isPlayer: false, // ✅ AI-controlled
+            isPlayer: false,
             stats: { logic: 1, force: 5, stability: 3, speed: 2 },
             subsystems: ['Force', 'Crash', 'Branch', 'Merge'],
             status: [],
@@ -169,6 +182,11 @@ export const useGameStore = create<GameState>((set, get) => ({
             currentTurnIndex: newIndex,
             hasSummonedBash: true,
           })
+          setTimeout(() => {
+            const currentOrder = get().turnOrder
+            get().pushLog(`dm:: Updated turn order: ${currentOrder.map(c => c.name).join(' → ')}`)
+          }, 3500)
+
 
           get().pushLog("dm:: Proximity breach detected. Unauthorized kinetic signature inbound…")
           setTimeout(() => get().pushLog("dm:: Reinforcement authorized by root protocol."), 1000)
@@ -181,7 +199,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (actor.name === 'Bash') {
       const foe = enemies.find(f => f.name.toLowerCase() === (state.target || '').toLowerCase())
       if (foe && foe.integrity > 0) {
-        const damage = 20
+        const damage = calculateDamage(actor, "force")
         const newIntegrity = Math.max(0, foe.integrity - damage)
         get().updateEnemy(foe.name, { integrity: newIntegrity })
         get().pushLog(`Bash::force:: -${damage} integrity to ${foe.name}`)
