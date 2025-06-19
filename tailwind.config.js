@@ -1,7 +1,9 @@
-// tailwind.config.cjs
-module.exports = {
-  content: ["./index.html","./src/**/*.{js,ts,jsx,tsx}"],
-  safelist: ["text-red-400","text-purple-400","text-yellow-300"],
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}"
+  ],
   theme: {
     extend: {
       colors: {
@@ -17,7 +19,8 @@ module.exports = {
           subtext: '#a1a1aa', // muted text
         }
       }
-    }
+    },
   },
   plugins: [],
 }
+

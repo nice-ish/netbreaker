@@ -11,8 +11,8 @@ export default function Sidebar() {
   const targets = useGameStore((s) => s.targets);
 
   return (
-    <div className="bg-nb-200 text-slate-200 p-4 border-r border-gray-800 flex flex-col h-full min-w-0">
-      <h2 className="text-base font-semibold text-white mb-2">Party</h2>
+    <div className="bg-nb-300 text-slate-200 p-4 border-r border-nb-border flex flex-col h-full min-w-0">
+      <h2 className="text-xs text-nb-subtext font-mono uppercase mb-2">Party</h2>
         <CharacterCard
           name={player.name}
           className={player.class}

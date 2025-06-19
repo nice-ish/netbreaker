@@ -12,20 +12,12 @@ export default function Layout() {
     <div className="fixed inset-0 flex flex-col bg-black">
       <div className="flex flex-1 min-h-0 min-w-0">
         <div className="flex flex-col min-w-0 w-1/5"><Sidebar /></div>
-        <main className={`flex flex-col min-w-0 ${encounter ? 'w-3/5' : 'w-4/5'}`}>
+        <main className="flex flex-col min-w-0 w-3/5">
           <Terminal />
         </main>
         {/* Animated right panel */}
         <div
-          className={
-            `flex flex-col min-w-0 w-1/5
-            transform transition-transform duration-500 ease-in-out
-            ${encounter
-              ? 'translate-x-0 opacity-100 pointer-events-auto'
-              : 'translate-x-full opacity-0 pointer-events-none'}
-            `
-          }
-          style={{ willChange: 'transform, opacity' }}
+          className="flex flex-col min-w-0 w-1/5"
         >
           <RightPanel />
         </div>

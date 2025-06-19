@@ -51,6 +51,8 @@ interface GameState {
   nextTurn: () => void
   turnOrder: Character[]
   currentTurnIndex: number
+  scanned: boolean
+  setScanned: (scanned: boolean) => void
 }
 
 export function calculateDamage(attacker: Character, type: 'exploit' | 'force' | 'crash'): number {
@@ -186,6 +188,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   encounter: null,
   turnOrder: [],
   currentTurnIndex: -1,
+  scanned: false,
+  setScanned: (scanned: boolean) => set({ scanned }),
 
   pushLog: (entry) => set((state) => ({ log: [...state.log, entry] })),
 

@@ -8,22 +8,31 @@ export default function RightPanel() {
   const turnOrder = useGameStore((s) => s.turnOrder);
   const currentTurnIndex = useGameStore((s) => s.currentTurnIndex);
   const currentActor = turnOrder && currentTurnIndex >= 0 ? turnOrder[currentTurnIndex] : null;
-
-  if (!encounter) return <div className="bg-nb-200 border-l border-gray-800 p-4 h-full flex flex-col min-w-0" />;
+  const scanned = useGameStore((s) => s.scanned);
 
   return (
-    <div className="bg-nb-200 text-slate-200 border-l border-gray-800 p-4 h-full flex flex-col min-w-0">
-      {/* Encounter/Location */}
+    <div className="bg-nb-300 text-slate-200 border-l border-nb-border p-4 h-full flex flex-col min-w-0">
+      {/* Context Card */}
       <div className="mb-6">
-        <h2 className="text-base font-semibold text-white mb-1">Location</h2>
-        <div className="text-slate-400 font-bold text-sm">{encounter.name}</div>
-        <div className="text-slate-400 text-xs mt-1">{encounter.description}</div>
+        <div className="bg-nb-100 border-l-4 border-nb-accent p-4 rounded-md shadow-sm flex flex-col gap-2">
+          <div className="text-xs text-nb-subtext font-mono uppercase tracking-wider mb-1">Context</div>
+          <div className="flex flex-col gap-1">
+            <div>
+              <span className="text-nb-accent font-bold mr-2">Location:</span>
+              <span className="text-nb-text font-semibold">{encounter ? encounter.name : 'No active protocol'}</span>
+            </div>
+            <div>
+              <span className="text-nb-accent font-bold mr-2">Objective:</span>
+              <span className="text-nb-text">{encounter ? encounter.description : 'Start a protocol to receive your objective.'}</span>
+            </div>
+          </div>
+        </div>
       </div>
       {/* Enemies */}
       <div>
-        <h2 className="text-base font-semibold text-white mb-2">Detected Foes</h2>
-        {encounter.enemies.length === 0 && <div className="text-gray-500 text-xs">No foes detected.</div>}
-        {encounter.enemies.map((enemy) => (
+        <h2 className="text-xs text-nb-subtext font-mono uppercase tracking-wider mb-2">Enemy protocols</h2>
+        {(!encounter || !scanned) && <div className="text-gray-500 text-xs">No foes detected.</div>}
+        {encounter && scanned && encounter.enemies.map((enemy) => (
           <CharacterCard
             key={enemy.id}
             name={enemy.name}

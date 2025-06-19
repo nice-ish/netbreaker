@@ -65,11 +65,13 @@ export default function Terminal() {
   const nextTurn = useGameStore((s) => s.nextTurn)
   const addPartyMember = useGameStore((s) => s.addPartyMember)
   const targets = useGameStore((s) => s.targets)
+  const setScanned = useGameStore((s) => s.setScanned)
+  const scanned = useGameStore((s) => s.scanned)
 
   const allChars = [player, ...party, ...(encounter?.enemies || [])]
 
   // Typewriter animation effect for log
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null)
+  const typingTimeout = useRef<number | null>(null)
   useEffect(() => {
     if (displayedLog.length === log.length) return
     setLogIsAnimating(true)
@@ -130,7 +132,8 @@ export default function Terminal() {
     switch (command) {
       case "start":
         start(tutorialEncounter)
-        pushLog("dm:: SYSTEM ONLINE. Training protocol initiated.")
+        setScanned(false)
+        pushLog("dm:: You're connected. Recommended first step: scan for hostiles.")
         break
       case "status":
         pushLog(`integrity:: ${player.integrity}%`)
@@ -140,6 +143,7 @@ export default function Terminal() {
         pushLog("dm:: Scanning...")
         setTimeout(() => {
           setScanning(false)
+          setScanned(true)
           if (encounter) {
             const foes = encounter.enemies?.map(f => `${f.name} (${f.integrity}%)`).join(", ")
             pushLog(foes ? `foes:: ${foes}` : "no foes detected")
@@ -298,10 +302,25 @@ export default function Terminal() {
   let availableList: string[] = []
   const raw = input.toLowerCase()
   const [cmd] = raw.split(" ")
-  if (cmd === "target") {
+  if (!encounter) {
+    availableList = ["start"]
+  } else if (cmd === "target") {
     availableList = allChars.map(c => c.name)
   } else {
     availableList = POSSIBLE_COMMANDS
+  }
+
+  // Handler for clicking available buttons
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const handleAvailableClick = (item: string) => {
+    if (cmd === "target") {
+      setInput(`target ${item.toLowerCase()}`)
+    } else {
+      setInput(item)
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 0)
+    }
   }
 
   const logEndRef = useRef<HTMLDivElement | null>(null);
@@ -313,16 +332,25 @@ export default function Terminal() {
   }, [displayedLog]);
 
   return (
-    <div className={`bg-black text-green-400 font-mono flex-1 flex flex-col h-full min-w-0 relative overflow-hidden ${scanning ? 'animate-pulse bg-green-950' : ''}`}>
-      <div className="flex-1 overflow-y-auto space-y-1 p-4">
-        {!encounter && <p>Welcome to Netbreaker. Type <code>start</code> to begin tutorial.</p>}
+    <div className={`bg-nb-400 text-nb-text font-mono flex-1 flex flex-col h-full min-w-0 relative overflow-hidden ${scanning ? 'animate-pulse bg-green-950' : ''}`}>
+      
+      <div className="sticky top-0 bg-nb-500 z-20  p-4 ">
+        
+        <div className="flex space-x-2 text-xs text-nb-subtext font-mono uppercase">
+          <div className="text-xs text-nb-subtext">/</div>
+          <div className="flex flex-wrap gap-1 items-center">{encounter?.name}</div>
+          <div className="text-xs text-nb-subtext">|</div>
+          <div className="flex flex-wrap gap-1 items-center">{encounter?.description}</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-1 p-4 border-t border-nb-border">
+
+        <p>Welcome to Netbreaker. Type <code>start</code> to begin tutorial.</p>
 
         {encounter && (
           <>
-            <p><strong>{encounter.name}</strong></p>
-            <p>{encounter.description}</p>
-            <p>turn::{encounter.turn}</p>
-            <hr className="border-green-700 my-2" />
+            
+
             {displayedLog.map((line, i) => (
               <LogLine key={i} line={line} />
             ))}
@@ -331,34 +359,47 @@ export default function Terminal() {
         )}
       </div>
 
-      <div className="sticky bottom-0 bg-black z-20 border-t border-green-900 p-4">
+      <div className="sticky bottom-0 bg-nb-500 z-20 border-t border-nb-border p-4 ">
         <form onSubmit={handleInput} className="mb-2">
           <div className="relative">
             <input
+              ref={inputRef}
               autoFocus
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full bg-black border border-green-700 text-green-400 p-2 outline-none relative z-10 font-mono"
+              className="shadow-l w-full bg-black border border-nb-border text-nb-text p-2 outline-none relative z-10 font-mono rounded-lg transition-colors hover:bg-nb-100 hover:text-nb-accent focus:ring-2 focus:ring-purple-400"
               placeholder=">"
               style={{ position: 'relative', background: 'transparent' }}
             />
             {suggestion && input && (
               <div
                 className="absolute top-0 left-0 w-full h-full flex items-center px-2 pointer-events-none select-none z-0 whitespace-pre font-mono"
-                style={{ color: 'rgba(34,197,94,0.6)' }}
+                
               >
                 <span className="invisible">{input}</span>
                 <span className="opacity-60">
                   {suggestion.slice(input.split(" ").slice(-1)[0].length)}
-                  <span className="ml-2 text-xs text-green-500">[⇥]</span>
+                  <span className="ml-2 text-xs text-nb-subtext">[⇥]</span>
                 </span>
               </div>
             )}
           </div>
         </form>
-        <div className="text-sm text-green-600">
-          <p>available:: {availableList.join(" | ")}</p>
+        <div className="text-xs text-nb-text font-mono uppercase">
+          <div className="flex flex-wrap gap-1 items-center">available::{" "}
+            {availableList.map((item, idx) => (
+              <button
+                key={item + idx}
+                type="button"
+                tabIndex={0}
+                className="text-xs px-2 py-0.5 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-400 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent"
+                onClick={() => handleAvailableClick(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -40,16 +40,16 @@ export default function CharacterCard({
       ? 'border-blue-500'
       : 'border-green-500';
   const cardBg =
-    color === 'slate'
-      ? 'bg-slate-800'
-      : 'bg-slate-900';
+    color === 'bg-nb'
+      ? 'bg-nb-200'
+      : 'bg-nb-300';
   return (
     <div
       className={`rounded-lg border p-3 mb-2 shadow-sm ${cardBg} ${borderColor} ${highlight ? 'ring-2 ring-yellow-100-opacity-10' : ''}`}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="font-semibold text-white flex items-center gap-2">
-          {name} {isPlayer && <span className="text-xs text-green-300">(you)</span>}
+        <span className="font-mono text-xs uppercase text-nb-text flex items-center gap-2">
+          {name} {isPlayer && <span className="text-xs text-nb-text">(you)</span>}
           {currentTurn && (
             <span title="Current turn" className="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
           )}
@@ -65,7 +65,7 @@ export default function CharacterCard({
             </span>
           )}
         </span>
-        <span className="text-xs text-gray-400">{className}</span>
+        <span className="text-xs text-nb-subtext">{className}</span>
       </div>
       <div className="flex items-center space-x-2 mb-1">
         <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -79,7 +79,7 @@ export default function CharacterCard({
       {subsystems.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1">
           {subsystems.map((ss) => (
-            <span key={ss} className="text-xs px-2 py-0.5 bg-gray-900 text-green-300 rounded font-mono uppercase">
+            <span key={ss} className="text-xs px-2 py-0.5 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border">
               {ss}
             </span>
           ))}
