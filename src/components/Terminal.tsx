@@ -153,8 +153,7 @@ export default function Terminal() {
         if (!target) return pushLog("error:: no target selected")
         const foe = encounter?.enemies.find(f => f.name.toLowerCase() === target.toLowerCase())
         if (!foe || foe.integrity <= 0) return pushLog("error:: target already destroyed")
-        useGameStore.getState().performAction(player, foe, exploitAction)
-        useGameStore.getState().nextTurn()
+        useGameStore.getState().performAction(player, foe, exploitAction, useGameStore.getState().nextTurn)
         break
       }
       case "patch": {

@@ -330,7 +330,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const result = action.resolve(attacker, defender);
     // Push dice roll log immediately
     get().pushLog(`dm:: ${result.log}`);
-    // After 1s, push outcome log and update state
+    // After 1s, push outcome log and queue the next turn
     setTimeout(() => {
       set((state) => {
         let newLog = [...state.log];
@@ -362,6 +362,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         // Log even if miss
         return { log: newLog };
       });
+      if (typeof window !== 'undefined' && (window as any).requestNextTurn) {
+        (window as any).requestNextTurn(nextTurn)
+      } else if (nextTurn) {
+        nextTurn()
+      }
     }, 1000);
   },
 
