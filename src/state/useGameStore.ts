@@ -27,32 +27,33 @@ export interface Encounter {
 }
 
 interface GameState {
-  log: string[]
-  player: Character
+    log: string[]
+    player: Character
   party: Character[]
   addPartyMember: (member: Character) => void
-  encounter: Encounter | null
-  inBranch: boolean
-  branchState: GameState | null
-  target: string | null
-  setTarget: (name: string) => void
-  updateEnemy: (name: string, changes: Partial<Character>) => void
-  updatePlayer: (changes: Partial<Character>) => void
+    encounter: Encounter | null
+    inBranch: boolean
+    branchState: GameState | null
+    target: string | null
+    setTarget: (name: string) => void
+    updateEnemy: (name: string, changes: Partial<Character>) => void
+    updatePlayer: (changes: Partial<Character>) => void
   turnOrder: Character[]
   currentTurnIndex: number
   setTurnOrder: (order: Character[]) => void
   nextTurn: () => void
   getCurrentActor: () => Character | null
-  pushLog: (entry: string) => void
-  startEncounter: (encounter: Encounter) => void
-  resetGame: () => void
-  createBranch: () => void
-  rebase: () => void
-  merge: () => void
+    pushLog: (entry: string) => void
+    startEncounter: (encounter: Encounter) => void
+    resetGame: () => void
+    createBranch: () => void
+    rebase: () => void
+    merge: () => void
   hasSummonedBash: boolean
-  performAction: (attacker: Character, defender: Character, action: Action) => void
+  performAction: (attacker: Character, defender: Character, action: Action, nextTurn: () => void) => void
   advanceTurn: () => void
   enemyTurn: () => void
+  bashHasTargeted: boolean
 }
 
 export function calculateDamage(attacker: Character, type: 'exploit' | 'force' | 'crash'): number {
@@ -143,22 +144,23 @@ export const thumpAction: Action = {
 export const useGameStore = create<GameState>((set, get) => ({
   target: null,
   setTarget: (name) => set({ target: name }),
-  log: [],
-  inBranch: false,
-  branchState: null,
+    log: [],
+    inBranch: false,
+    branchState: null,
   party: [],
   hasSummonedBash: false,
-  player: {
-    id: 'user-1',
-    name: 'Root',
-    class: 'Promptweaver',
-    integrity: 100,
+  bashHasTargeted: false,
+    player: {
+        id: 'user-1',
+        name: 'Root',
+        class: 'Promptweaver',
+        integrity: 100,
     maxIntegrity: 100,
     isPlayer: true,
     stats: { logic: 4, force: 3, stability: 2, speed: 2 },
-    subsystems: ['Exploit', 'Patch', 'Branch', 'Merge'],
-    status: [],
-  },
+        subsystems: ['Exploit', 'Patch', 'Branch', 'Merge'],
+        status: [],
+    },
   encounter: null,
   turnOrder: [],
   currentTurnIndex: -1,
@@ -219,19 +221,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         const target = targets[Math.floor(Math.random() * targets.length)]
 
       if (target) {
-        const damage = 10
-        const newIntegrity = Math.max(0, target.integrity - damage)
-
-        if (target.id === player.id) {
-          get().updatePlayer({ integrity: newIntegrity })
-        } else {
-          const updatedParty = party.map(p =>
-            p.id === target.id ? { ...p, integrity: newIntegrity } : p
-          )
-          set({ party: updatedParty })
-        }
-
-        get().pushLog(`Training Dummy::thump:: -${damage} integrity to ${target.name}`)
+        get().performAction(actor, target, thumpAction, get().nextTurn)
 
         if (!get().hasSummonedBash) {
           const bash: Character = {
@@ -265,9 +255,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
 
           get().pushLog("dm:: Proximity breach detected. Unauthorized kinetic signature inbound…")
-          setTimeout(() => get().pushLog("dm:: Reinforcement authorized by root protocol."), 1000)
-          setTimeout(() => get().pushLog("dm:: Bash // Class: Brute // has entered the field."), 2000)
-          setTimeout(() => get().pushLog("dm:: Bash joined your party."), 3000)
+          setTimeout(() => get().pushLog("dm:: Reinforcement authorized by root protocol."), 2000)
+          setTimeout(() => get().pushLog("dm:: Bash // Class: Brute // has entered the field."), 3000)
+          setTimeout(() => get().pushLog("dm:: Bash joined your party."), 4000)
         }
       }
     }
@@ -275,16 +265,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (actor.name === 'Bash') {
       const foe = enemies.find(f => f.name.toLowerCase() === (state.target || '').toLowerCase())
       if (foe && foe.integrity > 0) {
-        const damage = calculateDamage(actor, "force")
-        const newIntegrity = Math.max(0, foe.integrity - damage)
-        get().updateEnemy(foe.name, { integrity: newIntegrity })
-        get().pushLog(`Bash::force:: -${damage} integrity to ${foe.name}`)
+        if (!state.bashHasTargeted) {
+          get().pushLog(`dm:: Bash targets ${foe.name}`)
+          set({ bashHasTargeted: true })
+        }
+        get().performAction(actor, foe, thumpAction, get().nextTurn)
       } else {
         get().pushLog("Bash::force:: no valid target")
       }
     }
-
-    setTimeout(() => get().nextTurn(), 1000)
   },
 
   resetGame: () => set((state) => ({
@@ -293,6 +282,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     inBranch: false,
     branchState: null,
     hasSummonedBash: false,
+    bashHasTargeted: false,
     player: {
       ...state.player,
       integrity: 100,
@@ -328,36 +318,51 @@ export const useGameStore = create<GameState>((set, get) => ({
         encounter: { ...state.encounter, enemies: updatedEnemies },
       }
     }),
-
+  
   updatePlayer: (changes) =>
     set((state) => ({
       player: { ...state.player, ...changes },
     })),
-
-  performAction: (attacker: Character, defender: Character, action: Action) => {
+  
+  performAction: (attacker: Character, defender: Character, action: Action, nextTurn: () => void) => {
+    // Log action explainer
+    get().pushLog(`dm:: ${attacker.name} uses ${action.name} on ${defender.name}`);
     const result = action.resolve(attacker, defender);
-    set((state) => {
-      // Update defender integrity if hit
-      if (result.hit) {
-        if (defender.isPlayer) {
-          return {
-            player: { ...state.player, integrity: Math.max(0, state.player.integrity - result.damage) },
-            log: [...state.log, `dm:: ${result.log}`],
-          };
+    // Push dice roll log immediately
+    get().pushLog(`dm:: ${result.log}`);
+    // After 1s, push outcome log and update state
+    setTimeout(() => {
+      set((state) => {
+        let newLog = [...state.log];
+        if (result.hit) {
+          const summary = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} success! -${result.damage} integrity to ${defender.name}.`;
+          newLog = [...newLog, `dm:: ${summary}`];
         } else {
-          // Find and update the correct enemy
-          const updatedEnemies = state.encounter?.enemies.map((enemy) =>
-            enemy.name === defender.name ? { ...enemy, integrity: Math.max(0, enemy.integrity - result.damage) } : enemy
-          ) || [];
-          return {
-            encounter: state.encounter ? { ...state.encounter, enemies: updatedEnemies } : null,
-            log: [...state.log, `dm:: ${result.log}`],
-          };
+          const summary = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} failed! No damage to ${defender.name}.`;
+          newLog = [...newLog, `dm:: ${summary}`];
         }
-      }
-      // Log even if miss
-      return { log: [...state.log, `dm:: ${result.log}`] };
-    });
+        // Update defender integrity if hit
+        if (result.hit) {
+          if (defender.isPlayer) {
+            return {
+              player: { ...state.player, integrity: Math.max(0, state.player.integrity - result.damage) },
+              log: newLog,
+            };
+          } else {
+            // Find and update the correct enemy
+            const updatedEnemies = state.encounter?.enemies.map((enemy) =>
+              enemy.name === defender.name ? { ...enemy, integrity: Math.max(0, enemy.integrity - result.damage) } : enemy
+            ) || [];
+            return {
+              encounter: state.encounter ? { ...state.encounter, enemies: updatedEnemies } : null,
+              log: newLog,
+            };
+          }
+        }
+        // Log even if miss
+        return { log: newLog };
+      });
+    }, 1000);
   },
 
   advanceTurn: () => set((state) => {
@@ -374,7 +379,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const foe = state.encounter?.enemies[0];
     if (foe && foe.integrity > 0) {
-      state.performAction(foe, state.player, thumpAction);
+      state.performAction(foe, state.player, thumpAction, state.nextTurn);
       get().advanceTurn();
     }
   },

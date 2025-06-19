@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useGameStore, exploitAction } from "../state/useGameStore"
 import { calculateDamage } from "../state/useGameStore"
 import { tutorialEncounter } from "../data/tutorialEncounter"
@@ -23,8 +23,19 @@ function LogLine({ line }: { line: string }) {
       className = "text-red-400"
       display = `Training Dummy: ${action} ${message}`
     } else if (actor.toLowerCase() === "dm") {
-      className = "text-purple-400"
-      display = message
+      if (message.includes("rolls") && message.includes("vs")) {
+        className = "text-yellow-300"
+        display = message
+      } else if (message.toLowerCase().includes("success!")) {
+        className = "text-green-400 font-bold"
+        display = message
+      } else if (message.toLowerCase().includes("failed!")) {
+        className = "text-red-400 font-bold"
+        display = message
+      } else {
+        className = "text-purple-400"
+        display = message
+      }
     } else {
       className = "text-green-400"
       display = `${actor}: ${action} ${message}`
@@ -39,6 +50,8 @@ function LogLine({ line }: { line: string }) {
 export default function Terminal() {
   const [input, setInput] = useState("")
   const [suggestion, setSuggestion] = useState("")
+  const [scanning, setScanning] = useState(false)
+  const [displayedLog, setDisplayedLog] = useState<string[]>([])
 
   const encounter = useGameStore((s) => s.encounter)
   const log = useGameStore((s) => s.log)
@@ -52,6 +65,27 @@ export default function Terminal() {
   const advanceTurn = useGameStore((s) => s.nextTurn)
   const addPartyMember = useGameStore((s) => s.addPartyMember)
 
+  // Typewriter animation effect for log
+  const typingTimeout = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => {
+    if (displayedLog.length === log.length) return
+    // Animate only the latest entry
+    const prev = log.slice(0, -1)
+    const full = log[log.length - 1] || ""
+    let i = 0
+    function typeNext() {
+      setDisplayedLog([...prev, full.slice(0, i)])
+      if (i < full.length) {
+        typingTimeout.current = setTimeout(typeNext, 4 + Math.random() * 16)
+        i++
+      } else {
+        setDisplayedLog([...prev, full])
+      }
+    }
+    typeNext()
+    return () => { if (typingTimeout.current) { clearTimeout(typingTimeout.current); } };
+  }, [log])
+
   useEffect(() => {
     pushLog("dm:: Netspace interface initialised. Awaiting protocol engagement.")
   }, [])
@@ -63,6 +97,9 @@ export default function Terminal() {
     const [cmd, ...argParts] = raw.split(" ")
     const command = cmd.toLowerCase()
     const argument = argParts.join(" ").toLowerCase()
+
+    // Echo user input to the log
+    pushLog(`> ${raw}`)
 
     setInput("")
     setSuggestion("")
@@ -78,12 +115,17 @@ export default function Terminal() {
         pushLog(`integrity:: ${player.integrity}%`)
         break
       case "scan":
-        if (encounter) {
-          const foes = encounter.enemies?.map(f => `${f.name} (${f.integrity}%)`).join(", ")
-          pushLog(foes ? `foes:: ${foes}` : "no foes detected")
-        } else {
-          pushLog("no encounter active")
-        }
+        setScanning(true)
+        pushLog("dm:: Scanning...")
+        setTimeout(() => {
+          setScanning(false)
+          if (encounter) {
+            const foes = encounter.enemies?.map(f => `${f.name} (${f.integrity}%)`).join(", ")
+            pushLog(foes ? `foes:: ${foes}` : "no foes detected")
+          } else {
+            pushLog("no encounter active")
+          }
+        }, 2500)
         break
       case "target":
         if (argument) {
@@ -213,8 +255,16 @@ export default function Terminal() {
     setSuggestion("")
   }
 
+  const logEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [displayedLog]);
+
   return (
-    <div className="bg-black text-green-400 font-mono flex-1 flex flex-col h-full min-w-0 relative overflow-hidden">
+    <div className={`bg-black text-green-400 font-mono flex-1 flex flex-col h-full min-w-0 relative overflow-hidden ${scanning ? 'animate-pulse bg-green-950' : ''}`}>
       <div className="flex-1 overflow-y-auto space-y-1 p-4">
         {!encounter && <p>Welcome to Netbreaker. Type <code>start</code> to begin tutorial.</p>}
 
@@ -224,9 +274,10 @@ export default function Terminal() {
             <p>{encounter.description}</p>
             <p>turn::{encounter.turn}</p>
             <hr className="border-green-700 my-2" />
-            {log.map((line, i) => (
+            {displayedLog.map((line, i) => (
               <LogLine key={i} line={line} />
             ))}
+            <div ref={logEndRef} />
           </>
         )}
       </div>
