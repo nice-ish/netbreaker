@@ -50,6 +50,9 @@ interface GameState {
   rebase: () => void
   merge: () => void
   hasSummonedBash: boolean
+  performAction: (attacker: Character, defender: Character, action: Action) => void
+  advanceTurn: () => void
+  enemyTurn: () => void
 }
 
 export function calculateDamage(attacker: Character, type: 'exploit' | 'force' | 'crash'): number {
@@ -64,6 +67,78 @@ export function calculateDamage(attacker: Character, type: 'exploit' | 'force' |
       return 10
   }
 }
+
+// Dice roll utility
+function rollDice(sides: number = 20, modifier: number = 0): { roll: number, total: number } {
+  const roll = Math.ceil(Math.random() * sides);
+  return { roll, total: roll + modifier };
+}
+
+type Stat = 'logic' | 'force' | 'stability' | 'speed';
+
+export interface Action {
+  name: string;
+  attackStat: Stat;
+  defenseStat: Stat;
+  resolve: (attacker: Character, defender: Character) => ActionResult;
+}
+
+interface ActionResult {
+  attackerRoll: number;
+  attackerTotal: number;
+  defenderRoll: number;
+  defenderTotal: number;
+  hit: boolean;
+  damage: number;
+  log: string;
+}
+
+// Example actions
+export const exploitAction: Action = {
+  name: 'exploit',
+  attackStat: 'logic',
+  defenseStat: 'stability',
+  resolve(attacker, defender) {
+    const atkMod = attacker.stats.logic;
+    const defMod = defender.stats.stability;
+    const atk = rollDice(20, atkMod);
+    const def = rollDice(20, defMod);
+    const hit = atk.total > def.total;
+    const damage = hit ? 20 + atkMod : 0;
+    return {
+      attackerRoll: atk.roll,
+      attackerTotal: atk.total,
+      defenderRoll: def.roll,
+      defenderTotal: def.total,
+      hit,
+      damage,
+      log: `${attacker.name} rolls ${atk.roll}+${atkMod} (${atk.total}) vs ${defender.name} ${def.roll}+${defMod} (${def.total}) — ${hit ? `HIT for ${damage}` : 'MISS'}`
+    };
+  }
+};
+
+export const thumpAction: Action = {
+  name: 'thump',
+  attackStat: 'force',
+  defenseStat: 'stability',
+  resolve(attacker, defender) {
+    const atkMod = attacker.stats.force;
+    const defMod = defender.stats.stability;
+    const atk = rollDice(20, atkMod);
+    const def = rollDice(20, defMod);
+    const hit = atk.total > def.total;
+    const damage = hit ? 10 + atkMod : 0;
+    return {
+      attackerRoll: atk.roll,
+      attackerTotal: atk.total,
+      defenderRoll: def.roll,
+      defenderTotal: def.total,
+      hit,
+      damage,
+      log: `${attacker.name} rolls ${atk.roll}+${atkMod} (${atk.total}) vs ${defender.name} ${def.roll}+${defMod} (${def.total}) — ${hit ? `HIT for ${damage}` : 'MISS'}`
+    };
+  }
+};
 
 export const useGameStore = create<GameState>((set, get) => ({
   target: null,
@@ -258,4 +333,49 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       player: { ...state.player, ...changes },
     })),
+
+  performAction: (attacker: Character, defender: Character, action: Action) => {
+    const result = action.resolve(attacker, defender);
+    set((state) => {
+      // Update defender integrity if hit
+      if (result.hit) {
+        if (defender.isPlayer) {
+          return {
+            player: { ...state.player, integrity: Math.max(0, state.player.integrity - result.damage) },
+            log: [...state.log, `dm:: ${result.log}`],
+          };
+        } else {
+          // Find and update the correct enemy
+          const updatedEnemies = state.encounter?.enemies.map((enemy) =>
+            enemy.name === defender.name ? { ...enemy, integrity: Math.max(0, enemy.integrity - result.damage) } : enemy
+          ) || [];
+          return {
+            encounter: state.encounter ? { ...state.encounter, enemies: updatedEnemies } : null,
+            log: [...state.log, `dm:: ${result.log}`],
+          };
+        }
+      }
+      // Log even if miss
+      return { log: [...state.log, `dm:: ${result.log}`] };
+    });
+  },
+
+  advanceTurn: () => set((state) => {
+    if (!state.encounter) return state;
+    return {
+      encounter: {
+        ...state.encounter,
+        turn: state.encounter.turn + 1,
+      },
+    };
+  }),
+
+  enemyTurn: () => {
+    const state = get();
+    const foe = state.encounter?.enemies[0];
+    if (foe && foe.integrity > 0) {
+      state.performAction(foe, state.player, thumpAction);
+      get().advanceTurn();
+    }
+  },
 }))

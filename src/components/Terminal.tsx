@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { useGameStore } from "../state/useGameStore"
+import { useGameStore, exploitAction } from "../state/useGameStore"
 import { calculateDamage } from "../state/useGameStore"
 import { tutorialEncounter } from "../data/tutorialEncounter"
 
@@ -108,19 +108,13 @@ export default function Terminal() {
         }
         break
       case "exploit": {
-          if (!target) return pushLog("error:: no target selected")
-          const foe = encounter?.enemies.find(f => f.name.toLowerCase() === target.toLowerCase())
-          if (!foe || foe.integrity <= 0) return pushLog("error:: target already destroyed")
-        
-          const damage = calculateDamage(player, "exploit")
-          const newIntegrity = Math.max(0, foe.integrity - damage)
-          updateEnemy(foe.name, { integrity: newIntegrity })
-          pushLog(`Root::exploit:: -${damage} integrity to ${foe.name}`)
-          if (newIntegrity === 0) pushLog(`dm:: ${foe.name} collapses. Training sequence successful.`)
-        
-          advanceTurn()
-          break
-        }
+        if (!target) return pushLog("error:: no target selected")
+        const foe = encounter?.enemies.find(f => f.name.toLowerCase() === target.toLowerCase())
+        if (!foe || foe.integrity <= 0) return pushLog("error:: target already destroyed")
+        useGameStore.getState().performAction(player, foe, exploitAction)
+        useGameStore.getState().nextTurn()
+        break
+      }
       case "patch": {
         if (player.integrity >= 100) {
           pushLog("patch:: integrity already full")
@@ -220,8 +214,8 @@ export default function Terminal() {
   }
 
   return (
-    <div className="bg-black text-green-400 font-mono h-full p-4 flex flex-col relative">
-      <div className="flex-1 overflow-y-auto space-y-1">
+    <div className="bg-black text-green-400 font-mono flex-1 flex flex-col h-full min-w-0 relative overflow-hidden">
+      <div className="flex-1 overflow-y-auto space-y-1 p-4">
         {!encounter && <p>Welcome to Netbreaker. Type <code>start</code> to begin tutorial.</p>}
 
         {encounter && (
@@ -237,7 +231,7 @@ export default function Terminal() {
         )}
       </div>
 
-      <div className="sticky bottom-0 bg-black z-20 border-t border-green-900 pt-2 pb-2">
+      <div className="sticky bottom-0 bg-black z-20 border-t border-green-900 p-4">
         <form onSubmit={handleInput} className="mb-2">
           <div className="relative">
             <input
