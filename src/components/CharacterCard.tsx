@@ -10,6 +10,8 @@ interface CharacterCardProps {
   status?: string[];
   isPlayer?: boolean;
   highlight?: boolean;
+  currentTurn?: boolean;
+  isTargeted?: boolean;
 }
 
 export default function CharacterCard({
@@ -22,26 +24,46 @@ export default function CharacterCard({
   status = [],
   isPlayer = false,
   highlight = false,
+  currentTurn = false,
+  isTargeted = false,
 }: CharacterCardProps) {
   const barColor =
     color === 'red'
       ? 'bg-red-500'
-      : color === 'blue'
-      ? 'bg-blue-500'
+      : color === 'slate'
+      ? 'bg-blue-800'
       : 'bg-green-500';
   const borderColor =
     color === 'red'
       ? 'border-red-500'
-      : color === 'blue'
+      : color === 'slate'
       ? 'border-blue-500'
       : 'border-green-500';
+  const cardBg =
+    color === 'slate'
+      ? 'bg-slate-800'
+      : 'bg-slate-900';
   return (
     <div
-      className={`rounded-lg border p-3 mb-2 shadow-sm bg-gray-800 ${borderColor} ${highlight ? 'ring-2 ring-yellow-400' : ''}`}
+      className={`rounded-lg border p-3 mb-2 shadow-sm ${cardBg} ${borderColor} ${highlight ? 'ring-2 ring-yellow-100-opacity-10' : ''}`}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="font-semibold text-white">
+        <span className="font-semibold text-white flex items-center gap-2">
           {name} {isPlayer && <span className="text-xs text-green-300">(you)</span>}
+          {currentTurn && (
+            <span title="Current turn" className="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+          )}
+          {!currentTurn && isTargeted && (
+            <span title="Targeted by current actor" className="inline-block align-middle">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="10" cy="10" r="7" stroke="#facc15" strokeWidth="2" />
+                <line x1="10" y1="3" x2="10" y2="0" stroke="#facc15" strokeWidth="2" />
+                <line x1="10" y1="17" x2="10" y2="20" stroke="#facc15" strokeWidth="2" />
+                <line x1="3" y1="10" x2="0" y2="10" stroke="#facc15" strokeWidth="2" />
+                <line x1="17" y1="10" x2="20" y2="10" stroke="#facc15" strokeWidth="2" />
+              </svg>
+            </span>
+          )}
         </span>
         <span className="text-xs text-gray-400">{className}</span>
       </div>

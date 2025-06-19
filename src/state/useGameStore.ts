@@ -34,15 +34,8 @@ interface GameState {
     encounter: Encounter | null
     inBranch: boolean
     branchState: GameState | null
-    target: string | null
-    setTarget: (name: string) => void
-    updateEnemy: (name: string, changes: Partial<Character>) => void
-    updatePlayer: (changes: Partial<Character>) => void
-  turnOrder: Character[]
-  currentTurnIndex: number
-  setTurnOrder: (order: Character[]) => void
-  nextTurn: () => void
-  getCurrentActor: () => Character | null
+    targets: { [characterId: string]: string }
+    setTarget: (characterId: string, targetName: string) => void
     pushLog: (entry: string) => void
     startEncounter: (encounter: Encounter) => void
     resetGame: () => void
@@ -54,6 +47,10 @@ interface GameState {
   advanceTurn: () => void
   enemyTurn: () => void
   bashHasTargeted: boolean
+  updatePlayer: (changes: Partial<Character>) => void
+  nextTurn: () => void
+  turnOrder: Character[]
+  currentTurnIndex: number
 }
 
 export function calculateDamage(attacker: Character, type: 'exploit' | 'force' | 'crash'): number {
@@ -141,9 +138,34 @@ export const thumpAction: Action = {
   }
 };
 
+export const forceAction: Action = {
+  name: 'force',
+  attackStat: 'force',
+  defenseStat: 'stability',
+  resolve(attacker, defender) {
+    const atkMod = attacker.stats.force;
+    const defMod = defender.stats.stability;
+    const atk = rollDice(20, atkMod);
+    const def = rollDice(20, defMod);
+    const hit = atk.total > def.total;
+    const damage = hit ? 20 + atkMod : 0;
+    return {
+      attackerRoll: atk.roll,
+      attackerTotal: atk.total,
+      defenderRoll: def.roll,
+      defenderTotal: def.total,
+      hit,
+      damage,
+      log: `${attacker.name} rolls ${atk.roll}+${atkMod} (${atk.total}) vs ${defender.name} ${def.roll}+${defMod} (${def.total}) — ${hit ? `HIT for ${damage}` : 'MISS'}`
+    };
+  }
+};
+
 export const useGameStore = create<GameState>((set, get) => ({
-  target: null,
-  setTarget: (name) => set({ target: name }),
+  targets: {},
+  setTarget: (characterId: string, targetName: string) => set((state) => ({
+    targets: { ...state.targets, [characterId]: targetName }
+  })),
     log: [],
     inBranch: false,
     branchState: null,
@@ -248,6 +270,13 @@ export const useGameStore = create<GameState>((set, get) => ({
             currentTurnIndex: newIndex,
             hasSummonedBash: true,
           })
+
+          // Set Bash's target to the first living enemy
+          const firstEnemy = enemies.find(e => e.integrity > 0)
+          if (firstEnemy) {
+            get().setTarget(bash.id, firstEnemy.name)
+          }
+
           setTimeout(() => {
             const currentOrder = get().turnOrder
             get().pushLog(`dm:: Updated turn order: ${currentOrder.map(c => c.name).join(' → ')}`)
@@ -263,13 +292,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     if (actor.name === 'Bash') {
-      const foe = enemies.find(f => f.name.toLowerCase() === (state.target || '').toLowerCase())
+      const foe = enemies.find(f => f.name.toLowerCase() === (state.targets[actor.id] || '').toLowerCase())
       if (foe && foe.integrity > 0) {
         if (!state.bashHasTargeted) {
           get().pushLog(`dm:: Bash targets ${foe.name}`)
           set({ bashHasTargeted: true })
         }
-        get().performAction(actor, foe, thumpAction, get().nextTurn)
+        get().performAction(actor, foe, forceAction, get().nextTurn)
       } else {
         get().pushLog("Bash::force:: no valid target")
       }
@@ -346,6 +375,15 @@ export const useGameStore = create<GameState>((set, get) => ({
           if (defender.isPlayer) {
             return {
               player: { ...state.player, integrity: Math.max(0, state.player.integrity - result.damage) },
+              log: newLog,
+            };
+          } else if (state.party.some(p => p.id === defender.id)) {
+            // Update party member (including Bash)
+            const updatedParty = state.party.map(p =>
+              p.id === defender.id ? { ...p, integrity: Math.max(0, p.integrity - result.damage) } : p
+            );
+            return {
+              party: updatedParty,
               log: newLog,
             };
           } else {

@@ -52,23 +52,27 @@ export default function Terminal() {
   const [suggestion, setSuggestion] = useState("")
   const [scanning, setScanning] = useState(false)
   const [displayedLog, setDisplayedLog] = useState<string[]>([])
-
+  const [logIsAnimating, setLogIsAnimating] = useState(false)
+  const [turnQueue, setTurnQueue] = useState<(() => void)[]>([])
+  const party = useGameStore((s) => s.party)
   const encounter = useGameStore((s) => s.encounter)
   const log = useGameStore((s) => s.log)
   const player = useGameStore((s) => s.player)
   const start = useGameStore((s) => s.startEncounter)
   const pushLog = useGameStore((s) => s.pushLog)
   const setTarget = useGameStore((s) => s.setTarget)
-  const target = useGameStore((s) => s.target)
-  const updateEnemy = useGameStore((s) => s.updateEnemy)
   const updatePlayer = useGameStore((s) => s.updatePlayer)
-  const advanceTurn = useGameStore((s) => s.nextTurn)
+  const nextTurn = useGameStore((s) => s.nextTurn)
   const addPartyMember = useGameStore((s) => s.addPartyMember)
+  const targets = useGameStore((s) => s.targets)
+
+  const allChars = [player, ...party, ...(encounter?.enemies || [])]
 
   // Typewriter animation effect for log
   const typingTimeout = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
     if (displayedLog.length === log.length) return
+    setLogIsAnimating(true)
     // Animate only the latest entry
     const prev = log.slice(0, -1)
     const full = log[log.length - 1] || ""
@@ -80,11 +84,28 @@ export default function Terminal() {
         i++
       } else {
         setDisplayedLog([...prev, full])
+        setLogIsAnimating(false)
       }
     }
     typeNext()
     return () => { if (typingTimeout.current) { clearTimeout(typingTimeout.current); } };
   }, [log])
+
+  // When log animation finishes, process the next turn in the queue
+  useEffect(() => {
+    if (!logIsAnimating && turnQueue.length > 0) {
+      const [next, ...rest] = turnQueue;
+      if (typeof next === 'function') {
+        next();
+        setTurnQueue(rest);
+      }
+    }
+  }, [logIsAnimating, turnQueue]);
+
+  // Expose a function for the store to request the next turn
+  (window as any).requestNextTurn = (fn: () => void) => {
+    setTurnQueue(q => [...q, fn])
+  }
 
   useEffect(() => {
     pushLog("dm:: Netspace interface initialised. Awaiting protocol engagement.")
@@ -129,63 +150,73 @@ export default function Terminal() {
         break
       case "target":
         if (argument) {
-          const validTarget = encounter?.enemies?.find(f => f.name.toLowerCase() === argument)
+          const validTarget = allChars.find(f => f.name.toLowerCase() === argument)
           if (validTarget && validTarget.integrity > 0) {
-            setTarget(validTarget.name)
+            setTarget(player.id, validTarget.name)
             pushLog(`target set:: ${validTarget.name}`)
           } else {
             pushLog("target not found or already destroyed")
           }
         } else {
-          pushLog("usage:: target <enemy>")
+          pushLog("usage:: target <character>")
         }
         break
       case "who":
-        if (target) {
-          const foe = encounter?.enemies.find(f => f.name.toLowerCase() === target.toLowerCase())
-          const integrity = foe ? ` (${foe.integrity}%)` : ""
-          pushLog(`target:: ${target}${integrity}`)
+        if (targets[player.id]) {
+          const char = allChars.find(f => f.name.toLowerCase() === targets[player.id].toLowerCase())
+          const integrity = char ? ` (${char.integrity}%)` : ""
+          pushLog(`target:: ${targets[player.id]}${integrity}`)
         } else {
           pushLog("target:: none")
         }
         break
       case "exploit": {
-        if (!target) return pushLog("error:: no target selected")
-        const foe = encounter?.enemies.find(f => f.name.toLowerCase() === target.toLowerCase())
+        if (!targets[player.id]) return pushLog("error:: no target selected")
+        const foe = encounter?.enemies.find(f => f.name.toLowerCase() === targets[player.id].toLowerCase())
         if (!foe || foe.integrity <= 0) return pushLog("error:: target already destroyed")
-        useGameStore.getState().performAction(player, foe, exploitAction, useGameStore.getState().nextTurn)
+        useGameStore.getState().performAction(player, foe, exploitAction, nextTurn)
         break
       }
       case "patch": {
-        if (player.integrity >= 100) {
+        if (!targets[player.id]) return pushLog("error:: no target selected")
+        const char = allChars.find(f => f.name.toLowerCase() === targets[player.id].toLowerCase())
+        if (!char) return pushLog("error:: can only patch yourself or party members")
+        if (char.integrity >= char.maxIntegrity) {
           pushLog("patch:: integrity already full")
         } else {
           const heal = 20
-          const newIntegrity = Math.min(100, player.integrity + heal)
-          updatePlayer({ integrity: newIntegrity })
-          pushLog(`Root::patch:: +20 integrity`)
+          const newIntegrity = Math.min(char.maxIntegrity, char.integrity + heal)
+          if (char.id === player.id) {
+            updatePlayer({ integrity: newIntegrity })
+          } else {
+            const updatedParty = party.map(p =>
+              p.id === char.id ? { ...p, integrity: newIntegrity } : p
+            )
+            useGameStore.setState({ party: updatedParty })
+          }
+          pushLog(`${char.name}::patch:: +20 integrity`)
         }
-        advanceTurn()
+        nextTurn()
         break
       }
       case "branch":
         pushLog("branch:: timeline checkpoint created")
-        advanceTurn()
+        nextTurn()
         break
       case "merge":
         pushLog("merge:: committed timeline")
-        advanceTurn()
+        nextTurn()
         break
       case "rebase":
         pushLog("rebase:: reverted to previous checkpoint")
-        advanceTurn()
+        nextTurn()
         break
       default:
         if (POSSIBLE_COMMANDS.includes(command) && argument) {
           pushLog(`${command}:: targeting ${argument}`)
         } else if (POSSIBLE_COMMANDS.includes(command)) {
-          if (target) {
-            pushLog(`${command}:: using stored target ${target}`)
+          if (targets[player.id]) {
+            pushLog(`${command}:: using stored target ${targets[player.id]}`)
           } else {
             pushLog("error:: no target specified")
           }
@@ -193,10 +224,41 @@ export default function Terminal() {
           pushLog("unknown:: command not recognized")
         }
         if (!NON_TURN_COMMANDS.has(command)) {
-          advanceTurn()
+          nextTurn()
         }
     }
   }
+
+  // Suggestion logic for autocomplete (no dropdown)
+  useEffect(() => {
+    const raw = input.toLowerCase()
+    const [cmd, ...argParts] = raw.split(" ")
+    const arg = argParts.join(" ")
+    if (!cmd) return
+
+    if (!POSSIBLE_COMMANDS.includes(cmd)) {
+      const match = POSSIBLE_COMMANDS.find((c) => c.startsWith(cmd) && c !== cmd)
+      setSuggestion(match || "")
+      return
+    }
+
+    if (cmd === "target") {
+      const matches = allChars
+        .filter(char => char.name.toLowerCase().startsWith(arg) && char.name.toLowerCase() !== arg)
+        .map(char => char.name.toLowerCase())
+      setSuggestion(matches[0] || "")
+      return
+    }
+
+    if (encounter?.enemies && arg) {
+      const match = encounter.enemies.find(enemy =>
+        enemy.name.toLowerCase().startsWith(arg) && enemy.name.toLowerCase() !== arg
+      )
+      setSuggestion(match?.name.toLowerCase() || "")
+    } else {
+      setSuggestion("")
+    }
+  }, [input, party, player, encounter])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Tab") {
@@ -214,6 +276,12 @@ export default function Terminal() {
         return
       }
 
+      if (cmd === "target" && suggestion) {
+        setInput(`target ${suggestion}`)
+        setSuggestion("")
+        return
+      }
+
       if (encounter?.enemies && arg) {
         const match = encounter.enemies.find((enemy) =>
           enemy.name.toLowerCase().startsWith(arg) && enemy.name.toLowerCase() !== arg
@@ -226,32 +294,14 @@ export default function Terminal() {
     }
   }
 
-  useEffect(() => {
-    const raw = input.toLowerCase()
-    const [cmd, ...argParts] = raw.split(" ")
-    const arg = argParts.join(" ")
-
-    if (!cmd) return
-
-    if (!POSSIBLE_COMMANDS.includes(cmd)) {
-      const match = POSSIBLE_COMMANDS.find((c) => c.startsWith(cmd) && c !== cmd)
-      setSuggestion(match || "")
-      return
-    }
-
-    if (encounter?.enemies && arg) {
-      const match = encounter.enemies.find(enemy =>
-        enemy.name.toLowerCase().startsWith(arg) && enemy.name.toLowerCase() !== arg
-      )
-      setSuggestion(match?.name.toLowerCase() || "")
-    } else {
-      setSuggestion("")
-    }
-  }, [input, encounter])
-
-  const handleClickTarget = (name: string) => {
-    setInput(`target ${name.toLowerCase()}`)
-    setSuggestion("")
+  // Dynamic available:: section
+  let availableList: string[] = []
+  const raw = input.toLowerCase()
+  const [cmd] = raw.split(" ")
+  if (cmd === "target") {
+    availableList = allChars.map(c => c.name)
+  } else {
+    availableList = POSSIBLE_COMMANDS
   }
 
   const logEndRef = useRef<HTMLDivElement | null>(null);
@@ -308,18 +358,10 @@ export default function Terminal() {
           </div>
         </form>
         <div className="text-sm text-green-600">
-          <p>available:: {POSSIBLE_COMMANDS.join(" | ")}</p>
-          {encounter?.enemies.map((enemy) => (
-            <p
-              key={enemy.name}
-              className="cursor-pointer underline hover:text-green-300"
-              onClick={() => handleClickTarget(enemy.name)}
-            >
-              → {enemy.name} ({enemy.integrity}%)
-            </p>
-          ))}
+          <p>available:: {availableList.join(" | ")}</p>
         </div>
       </div>
     </div>
   )
 }
+

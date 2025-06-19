@@ -2,6 +2,22 @@
 module.exports = {
   content: ["./index.html","./src/**/*.{js,ts,jsx,tsx}"],
   safelist: ["text-red-400","text-purple-400","text-yellow-300"],
-  theme: { extend: {} },
+  theme: {
+    extend: {
+      colors: {
+        nb: {
+          100: '#23272e', // lightest panel
+          200: '#1a1d23', // sidebar
+          300: '#181a20', // card bg
+          400: '#14161b', // terminal bg
+          500: '#101216', // deepest bg
+          border: '#23272e', // border color
+          accent: '#facc15', // yellow accent
+          text: '#e5e7eb', // light text
+          subtext: '#a1a1aa', // muted text
+        }
+      }
+    }
+  },
   plugins: [],
 }

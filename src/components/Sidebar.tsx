@@ -5,12 +5,14 @@ import CharacterCard from './CharacterCard';
 export default function Sidebar() {
   const player = useGameStore((s) => s.player);
   const party = useGameStore((s) => s.party);
-  const currentActor = useGameStore((s) => s.getCurrentActor());
+  const turnOrder = useGameStore((s) => s.turnOrder);
+  const currentTurnIndex = useGameStore((s) => s.currentTurnIndex);
+  const currentActor = turnOrder && currentTurnIndex >= 0 ? turnOrder[currentTurnIndex] : null;
+  const targets = useGameStore((s) => s.targets);
 
   return (
-    <div className="bg-gray-900 text-gray-300 p-4 border-r border-gray-800 flex flex-col h-full min-w-0">
-      <p>Party</p>
-      <div className="mb-6">
+    <div className="bg-nb-200 text-slate-200 p-4 border-r border-gray-800 flex flex-col h-full min-w-0">
+      <h2 className="text-base font-semibold text-white mb-2">Party</h2>
         <CharacterCard
           name={player.name}
           className={player.class}
@@ -20,13 +22,12 @@ export default function Sidebar() {
           subsystems={player.subsystems}
           isPlayer={true}
           highlight={currentActor?.id === player.id}
+          currentTurn={currentActor?.id === player.id}
+          isTargeted={!!(currentActor && targets[currentActor.id] && targets[currentActor.id].toLowerCase() === player.name.toLowerCase())}
         />
-      </div>
-
-      {/* Party Members */}
+      
       {party.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-white mb-2">Party</h2>
+        <div className="mt-2">         
           <div className="space-y-2">
             {party.map((member) => (
               <CharacterCard
@@ -35,9 +36,11 @@ export default function Sidebar() {
                 className={member.class}
                 integrity={member.integrity}
                 maxIntegrity={member.maxIntegrity}
-                color="blue"
+                color="slate"
                 subsystems={member.subsystems}
                 highlight={currentActor?.id === member.id}
+                currentTurn={currentActor?.id === member.id}
+                isTargeted={!!(currentActor && targets[currentActor.id] && targets[currentActor.id].toLowerCase() === member.name.toLowerCase())}
               />
             ))}
           </div>
