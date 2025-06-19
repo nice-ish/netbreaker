@@ -81,6 +81,7 @@ export interface Action {
   attackStat: Stat;
   defenseStat: Stat;
   resolve: (attacker: Character, defender: Character) => ActionResult;
+  getSummary?: (hit: boolean, damage: number, attacker: Character, defender: Character) => string;
 }
 
 interface ActionResult {
@@ -114,7 +115,11 @@ export const exploitAction: Action = {
       damage,
       log: `${attacker.name} rolls ${atk.roll}+${atkMod} (${atk.total}) vs ${defender.name} ${def.roll}+${defMod} (${def.total}) — ${hit ? `HIT for ${damage}` : 'MISS'}`
     };
-  }
+  },
+  getSummary: (hit, damage, attacker, defender) =>
+    hit
+      ? `A weakness in the code was exploited. -${damage} to ${defender.name}'s code integrity.`
+      : `Exploit attempt failed. ${defender.name}'s defenses held.`
 };
 
 export const thumpAction: Action = {
@@ -137,7 +142,11 @@ export const thumpAction: Action = {
       damage,
       log: `${attacker.name} rolls ${atk.roll}+${atkMod} (${atk.total}) vs ${defender.name} ${def.roll}+${defMod} (${def.total}) — ${hit ? `HIT for ${damage}` : 'MISS'}`
     };
-  }
+  },
+  getSummary: (hit, damage, attacker, defender) =>
+    hit
+      ? `A direct hit! ${attacker.name} thumped ${defender.name} for -${damage} integrity.`
+      : `Thump missed. ${defender.name} evaded the attack.`
 };
 
 export const forceAction: Action = {
@@ -160,7 +169,11 @@ export const forceAction: Action = {
       damage,
       log: `${attacker.name} rolls ${atk.roll}+${atkMod} (${atk.total}) vs ${defender.name} ${def.roll}+${defMod} (${def.total}) — ${hit ? `HIT for ${damage}` : 'MISS'}`
     };
-  }
+  },
+  getSummary: (hit, damage, attacker, defender) =>
+    hit
+      ? `Forceful breach! ${attacker.name} overpowered ${defender.name} for -${damage} integrity.`
+      : `Force attack failed. ${defender.name} resisted the breach.`
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -367,13 +380,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     setTimeout(() => {
       set((state) => {
         let newLog = [...state.log];
-        if (result.hit) {
-          const summary = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} success! -${result.damage} integrity to ${defender.name}.`;
-          newLog = [...newLog, `dm:: ${summary}`];
-        } else {
-          const summary = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} failed! No damage to ${defender.name}.`;
-          newLog = [...newLog, `dm:: ${summary}`];
-        }
+        const summary = action.getSummary
+          ? action.getSummary(result.hit, result.damage, attacker, defender)
+          : result.hit
+            ? `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} success! -${result.damage} integrity to ${defender.name}.`
+            : `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} failed! No damage to ${defender.name}.`;
+        newLog = [...newLog, `dm:: ${summary}`];
         // Update defender integrity if hit
         if (result.hit) {
           if (defender.isPlayer) {

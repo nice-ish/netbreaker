@@ -7,9 +7,9 @@ const POSSIBLE_COMMANDS = ["start", "status", "scan", "target", "exploit", "patc
 const NON_TURN_COMMANDS = new Set(["start", "status", "scan", "target", "who"])
 
 
-function LogLine({ line }: { line: string }): React.ReactNode {
+function LogLine({ line }: { line: string }) {
   let className = ""
-  let display: React.ReactNode = line
+  let display = line
 
   const parts = line.split("::")
   if (parts.length >= 3) {
@@ -28,19 +28,17 @@ function LogLine({ line }: { line: string }): React.ReactNode {
         const diceMatch = message.match(/(\w+) rolls (\d+)\+([\d-]+) \((\d+)\) vs (\w+) (\d+)\+([\d-]+) \((\d+)\)/)
         if (diceMatch) {
           const [_, actor, roll, mod, total, defender, defRoll, defMod, defTotal] = diceMatch
-          display = (
-            <span>
-              <span className="font-bold text-nb-accent">{actor} rolls </span>
-              <span className="font-bold text-white">{roll}</span>
-              <span className="font-bold text-purple-400">+{mod}</span>
-              <span className="text-nb-subtext"> ({total})</span>
-              <span className="text-nb-subtext"> vs </span>
-              <span className="font-bold text-nb-accent">{defender} </span>
-              <span className="font-bold text-white">{defRoll}</span>
-              <span className="font-bold text-purple-400">+{defMod}</span>
-              <span className="text-nb-subtext"> ({defTotal})</span>
-            </span>
-          )
+          display = <span>
+            <span className="font-bold text-nb-accent">{actor} rolls </span>
+            <span className="font-bold text-white">{roll}</span>
+            <span className="font-bold text-purple-400">+{mod}</span>
+            <span className="text-nb-subtext"> ({total})</span>
+            <span className="text-nb-subtext"> vs </span>
+            <span className="font-bold text-nb-accent">{defender} </span>
+            <span className="font-bold text-white">{defRoll}</span>
+            <span className="font-bold text-purple-400">+{defMod}</span>
+            <span className="text-nb-subtext"> ({defTotal})</span>
+          </span>
           className = "text-yellow-300"
         } else {
           className = "text-yellow-300"
@@ -388,16 +386,18 @@ export default function Terminal() {
 
   return (
     <div className={`bg-nb-400 text-nb-text font-mono flex-1 flex flex-col h-full min-w-0 relative overflow-hidden ${scanning ? 'animate-pulse bg-green-950' : ''}`}>
-      
-      <div className="sticky top-0 bg-nb-500 z-20  p-4 ">
+      {encounter && (
+      <div className="sticky top-0 bg-nb-500 z-20  p-4 animate-move-down transition-transform duration-800">
         
-        <div className="flex space-x-2 text-xs text-nb-subtext font-mono uppercase">
-          <div className="text-xs text-nb-subtext">/</div>
-          <div className="flex flex-wrap gap-1 items-center">{encounter?.name}</div>
-          <div className="text-xs text-nb-subtext">|</div>
-          <div className="flex flex-wrap gap-1 items-center">{encounter?.description}</div>
+        
+          <div className="flex space-x-2 text-xs text-nb-subtext font-mono uppercase items-center">
+            <span className="inline-block w-2 h-2 bg-purple-400 rounded-full animate-pulse duration-200" />
+            <div className="flex flex-wrap gap-1 items-center">{encounter?.name}</div>
+            <div className="text-xs text-nb-subtext">|</div>
+            <div className="flex flex-wrap gap-1 items-center">{encounter?.description}</div>
         </div>
       </div>
+      )}
       <div className="flex-1 overflow-y-auto space-y-1 p-4 border-t border-nb-border">
 
         <p>Welcome to Netbreaker. Type <code>start</code> to begin tutorial.</p>
@@ -423,7 +423,7 @@ export default function Terminal() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="shadow-lg w-full bg-nb-500 border border-nb-border text-nb-text p-2 outline-none relative z-10 font-mono rounded-lg transition-colors hover:bg-nb-100 hover:text-nb-accent focus:ring-2 focus:ring-purple-400"
+              className="shadow-nb-accent w-full bg-nb-500 border border-nb-border text-nb-text p-2 outline-none relative z-10 font-mono rounded-lg transition-colors hover:bg-nb-100 hover:text-nb-accent focus:ring-2 focus:ring-purple-400"
               placeholder=">"
               style={{ position: 'relative', background: 'transparent' }}
             />

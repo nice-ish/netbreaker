@@ -12,22 +12,7 @@ export default function RightPanel() {
 
   return (
     <div className="bg-nb-300 text-slate-200 border-l border-nb-border p-4 h-full flex flex-col min-w-0">
-      {/* Context Card */}
-      <div className="mb-6">
-        <div className="bg-nb-100 border-l-4 border-nb-accent p-4 rounded-md shadow-sm flex flex-col gap-2">
-          <div className="text-xs text-nb-subtext font-mono uppercase tracking-wider mb-1">Context</div>
-          <div className="flex flex-col gap-1">
-            <div>
-              <span className="text-nb-accent font-bold mr-2">Location:</span>
-              <span className="text-nb-text font-semibold">{encounter ? encounter.name : 'No active protocol'}</span>
-            </div>
-            <div>
-              <span className="text-nb-accent font-bold mr-2">Objective:</span>
-              <span className="text-nb-text">{encounter ? encounter.description : 'Start a protocol to receive your objective.'}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+
       {/* Enemies */}
       <div>
         <h2 className="text-xs text-nb-subtext font-mono uppercase tracking-wider mb-2">Enemy protocols</h2>

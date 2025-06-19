@@ -16,8 +16,11 @@ export default {
           border: '#23272e', // border color
           accent: '#facc15', // yellow accent
           text: '#e5e7eb', // light text
-          subtext: '#a1a1aa', // muted text
-        }
+          subtext: '#a1a1aa', // muted texts
+        },
+      shadows: {
+        'nb-accent': '0 0 10px 0 rgba(250, 204, 21, 0.5)',
+      }
       }
     },
   },
