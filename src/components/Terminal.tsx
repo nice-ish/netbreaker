@@ -7,9 +7,9 @@ const POSSIBLE_COMMANDS = ["start", "status", "scan", "target", "exploit", "patc
 const NON_TURN_COMMANDS = new Set(["start", "status", "scan", "target", "who"])
 
 
-function LogLine({ line }: { line: string }) {
+function LogLine({ line }: { line: string }): React.ReactNode {
   let className = ""
-  let display = line
+  let display: React.ReactNode = line
 
   const parts = line.split("::")
   if (parts.length >= 3) {
@@ -24,8 +24,28 @@ function LogLine({ line }: { line: string }) {
       display = `Training Dummy: ${action} ${message}`
     } else if (actor.toLowerCase() === "dm") {
       if (message.includes("rolls") && message.includes("vs")) {
-        className = "text-yellow-300"
-        display = message
+        // Highlight dice roll: bold the roll, color the modifier
+        const diceMatch = message.match(/(\w+) rolls (\d+)\+([\d-]+) \((\d+)\) vs (\w+) (\d+)\+([\d-]+) \((\d+)\)/)
+        if (diceMatch) {
+          const [_, actor, roll, mod, total, defender, defRoll, defMod, defTotal] = diceMatch
+          display = (
+            <span>
+              <span className="font-bold text-nb-accent">{actor} rolls </span>
+              <span className="font-bold text-white">{roll}</span>
+              <span className="font-bold text-purple-400">+{mod}</span>
+              <span className="text-nb-subtext"> ({total})</span>
+              <span className="text-nb-subtext"> vs </span>
+              <span className="font-bold text-nb-accent">{defender} </span>
+              <span className="font-bold text-white">{defRoll}</span>
+              <span className="font-bold text-purple-400">+{defMod}</span>
+              <span className="text-nb-subtext"> ({defTotal})</span>
+            </span>
+          )
+          className = "text-yellow-300"
+        } else {
+          className = "text-yellow-300"
+          display = message
+        }
       } else if (message.toLowerCase().includes("success!")) {
         className = "text-green-400 font-bold"
         display = message
@@ -70,6 +90,19 @@ export default function Terminal() {
 
   const allChars = [player, ...party, ...(encounter?.enemies || [])]
 
+  // Add state for dice animation
+  const [diceAnimating, setDiceAnimating] = useState<null | {
+    logIndex: number;
+    actor: string;
+    roll: number;
+    mod: number;
+    total: number;
+    defender: string;
+    defRoll: number;
+    defMod: number;
+    defTotal: number;
+  }>(null);
+
   // Typewriter animation effect for log
   const typingTimeout = useRef<number | null>(null)
   useEffect(() => {
@@ -79,6 +112,28 @@ export default function Terminal() {
     const prev = log.slice(0, -1)
     const full = log[log.length - 1] || ""
     let i = 0
+
+    // Dice roll animation detection
+    const diceMatch = full.match(/^(.*?) rolls (\d+)\+([\d-]+) \((\d+)\) vs (.*?) (\d+)\+([\d-]+) \((\d+)\)/)
+    if (diceMatch) {
+      const [_, actor, roll, mod, total, defender, defRoll, defMod, defTotal] = diceMatch
+      let animFrame = 0;
+      let animRoll = 0;
+      function animateDice() {
+        animRoll = Math.floor(Math.random() * 20) + 1;
+        setDisplayedLog([...prev, `${actor} rolls ${animRoll} +${mod} ...`]);
+        animFrame++;
+        if (animFrame < 18) {
+          typingTimeout.current = window.setTimeout(animateDice, 40 + Math.random() * 30);
+        } else {
+          setDisplayedLog([...prev, full]);
+          setLogIsAnimating(false);
+        }
+      }
+      animateDice();
+      return () => { if (typingTimeout.current) { clearTimeout(typingTimeout.current); } };
+    }
+
     function typeNext() {
       setDisplayedLog([...prev, full.slice(0, i)])
       if (i < full.length) {
@@ -368,7 +423,7 @@ export default function Terminal() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="shadow-l w-full bg-black border border-nb-border text-nb-text p-2 outline-none relative z-10 font-mono rounded-lg transition-colors hover:bg-nb-100 hover:text-nb-accent focus:ring-2 focus:ring-purple-400"
+              className="shadow-lg w-full bg-nb-500 border border-nb-border text-nb-text p-2 outline-none relative z-10 font-mono rounded-lg transition-colors hover:bg-nb-100 hover:text-nb-accent focus:ring-2 focus:ring-purple-400"
               placeholder=">"
               style={{ position: 'relative', background: 'transparent' }}
             />
