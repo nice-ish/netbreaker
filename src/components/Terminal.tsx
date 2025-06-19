@@ -85,6 +85,9 @@ export default function Terminal() {
   const targets = useGameStore((s) => s.targets)
   const setScanned = useGameStore((s) => s.setScanned)
   const scanned = useGameStore((s) => s.scanned)
+  const currentTurnIndex = useGameStore((s) => s.currentTurnIndex);
+  const turnOrder = useGameStore((s) => s.turnOrder);
+  const currentActor = turnOrder && currentTurnIndex >= 0 ? turnOrder[currentTurnIndex] : null;
 
   const allChars = [player, ...party, ...(encounter?.enemies || [])]
 
@@ -434,20 +437,56 @@ export default function Terminal() {
 
       <div className="sticky bottom-0 bg-nb-500 z-20 border-t border-nb-border p-4 ">
         {/* Mobile-only party/targets buttons and overlays */}
-        <div className="flex gap-2 mb-2 md:hidden">
+        <div className="flex gap-2 mb-2 md:hidden items-center">
           <button
             type="button"
-            className="text-xs px-3 py-1 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-100 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent"
+            className="flex items-center text-xs px-3 py-1 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-100 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent"
             onClick={() => setShowParty(true)}
           >
             Party
+            <span className="flex -space-x-2 ml-2">
+              {[player, ...party].map(c => {
+                const isCurrentTurn = currentActor?.id === c.id;
+                const isTargeted = currentActor ? targets[currentActor.id]?.toLowerCase() === c.name.toLowerCase() : false;
+                return (
+                  <span 
+                    key={c.id} 
+                    className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-nb-text text-xs font-bold
+                      ${isCurrentTurn ? 'border-2 border-yellow-400 bg-nb-300' : 'border border-nb-border bg-nb-200'}
+                      ${isTargeted ? 'border-2 border-dashed border-yellow-400' : ''}
+                      transition-all duration-200
+                    `}
+                  >
+                    {c.name.charAt(0)}
+                  </span>
+                );
+              })}
+            </span>
           </button>
           <button
             type="button"
-            className="text-xs px-3 py-1 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-100 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent"
+            className="text-xs px-3 py-1 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-100 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent flex items-center gap-1"
             onClick={() => setShowTargets(true)}
           >
             Targets
+            <span className="flex -space-x-2 ml-2 items-center">
+              {(encounter?.enemies || []).map(e => {
+                const isCurrentTurn = currentActor?.id === e.id;
+                const isTargeted = currentActor ? targets[currentActor.id]?.toLowerCase() === e.name.toLowerCase() : false;
+                return (
+                  <span 
+                    key={e.id} 
+                    className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-nb-text text-xs font-bold
+                      ${isCurrentTurn ? 'border-2 border-yellow-400 bg-nb-300' : 'border border-nb-border bg-nb-200'}
+                      ${isTargeted ? 'border-2 border-dashed border-yellow-400' : ''}
+                      transition-all duration-200
+                    `}
+                  >
+                    {e.name.charAt(0)}
+                  </span>
+                );
+              })}
+            </span>
           </button>
         </div>
         {/* Party overlay */}

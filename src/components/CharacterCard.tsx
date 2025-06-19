@@ -43,9 +43,17 @@ export default function CharacterCard({
     color === 'bg-nb'
       ? 'bg-nb-200'
       : 'bg-nb-300';
+
+  // Special border styles for active and targeted characters
+  const borderStyle = currentTurn 
+    ? 'border-2 border-yellow-400' 
+    : isTargeted 
+    ? 'border-2 border-dashed border-yellow-400' 
+    : `border ${borderColor}`;
+
   return (
     <div
-      className={`rounded-lg border p-3 mb-2 shadow-sm ${cardBg} ${borderColor} ${highlight ? 'ring-2 ring-yellow-100-opacity-10' : ''}`}
+      className={`rounded-lg p-3 mb-2 shadow-sm ${cardBg} ${borderStyle} ${highlight ? 'ring-2 ring-yellow-100-opacity-10' : ''}`}
     >
       <div className="flex items-center justify-between mb-1">
         <span className="font-mono text-xs uppercase text-nb-text flex items-center gap-2">

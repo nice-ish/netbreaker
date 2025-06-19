@@ -8,6 +8,7 @@ interface Character {
   integrity: number
   maxIntegrity: number
   isPlayer?: boolean
+  avatar: string
   stats: {
     logic: number
     force: number
@@ -192,9 +193,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         name: 'Root',
         class: 'Promptweaver',
         integrity: 100,
-    maxIntegrity: 100,
-    isPlayer: true,
-    stats: { logic: 4, force: 3, stability: 2, speed: 2 },
+        maxIntegrity: 100,
+        isPlayer: true,
+        avatar: 'RT',
+        stats: { logic: 4, force: 3, stability: 2, speed: 2 },
         subsystems: ['Exploit', 'Patch', 'Branch', 'Merge'],
         status: [],
     },
@@ -270,6 +272,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             integrity: 100,
             maxIntegrity: 100,
             isPlayer: false,
+            avatar: 'B',
             stats: { logic: 1, force: 5, stability: 3, speed: 2 },
             subsystems: ['Force', 'Crash', 'Branch', 'Merge'],
             status: [],

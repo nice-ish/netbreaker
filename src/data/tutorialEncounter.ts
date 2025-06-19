@@ -10,6 +10,7 @@ export const tutorialEncounter: Encounter = {
       id: "dummy-1",
       name: "Training Dummy",
       class: "Target",
+      avatar: "TD",
       integrity: 200,
       maxIntegrity: 200,
       isPlayer: false, // ✅ THIS IS MISSING
