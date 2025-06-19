@@ -11,13 +11,13 @@ export default function Layout() {
   return (
     <div className="fixed inset-0 flex flex-col bg-black">
       <div className="flex flex-1 min-h-0 min-w-0">
-        <div className="flex flex-col min-w-0 w-1/5"><Sidebar /></div>
-        <main className="flex flex-col min-w-0 w-3/5">
+        <div className="hidden md:flex flex-col min-w-0 md:w-1/4"><Sidebar /></div>
+        <main className="flex flex-col min-w-0 w-full md:w-1/2">
           <Terminal />
         </main>
         {/* Animated right panel */}
         <div
-          className="flex flex-col min-w-0 w-1/5"
+          className="hidden md:flex flex-col min-w-0 md:w-1/4 transition-all duration-500 ease-in-out"
         >
           <RightPanel />
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react"
 import { useGameStore, exploitAction } from "../state/useGameStore"
 import { calculateDamage } from "../state/useGameStore"
 import { tutorialEncounter } from "../data/tutorialEncounter"
@@ -7,9 +7,9 @@ const POSSIBLE_COMMANDS = ["start", "status", "scan", "target", "exploit", "patc
 const NON_TURN_COMMANDS = new Set(["start", "status", "scan", "target", "who"])
 
 
-function LogLine({ line }: { line: string }) {
+function LogLine({ line }: { line: string }): React.ReactElement {
   let className = ""
-  let display = line
+  let display: React.ReactNode = line
 
   const parts = line.split("::")
   if (parts.length >= 3) {
@@ -179,6 +179,11 @@ export default function Terminal() {
 
     setInput("")
     setSuggestion("")
+
+    // Always refocus the input after submit
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
 
     if (!command) return
 
@@ -384,6 +389,17 @@ export default function Terminal() {
     }
   }, [displayedLog]);
 
+  // For mobile command overflow
+  const [showDropdown, setShowDropdown] = useState(false);
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  const MAX_MOBILE_COMMANDS = 3;
+  const visibleCommands = isMobile ? availableList.slice(0, MAX_MOBILE_COMMANDS) : availableList;
+  const overflowCommands = isMobile ? availableList.slice(MAX_MOBILE_COMMANDS) : [];
+
+  // Mobile overlays for party and targets
+  const [showParty, setShowParty] = useState(false);
+  const [showTargets, setShowTargets] = useState(false);
+
   return (
     <div className={`bg-nb-400 text-nb-text font-mono flex-1 flex flex-col h-full min-w-0 relative overflow-hidden ${scanning ? 'animate-pulse bg-green-950' : ''}`}>
       {encounter && (
@@ -407,7 +423,9 @@ export default function Terminal() {
             
 
             {displayedLog.map((line, i) => (
-              <LogLine key={i} line={line} />
+              <React.Fragment key={i}>
+                <LogLine line={line} />
+              </React.Fragment>
             ))}
             <div ref={logEndRef} />
           </>
@@ -415,18 +433,89 @@ export default function Terminal() {
       </div>
 
       <div className="sticky bottom-0 bg-nb-500 z-20 border-t border-nb-border p-4 ">
+        {/* Mobile-only party/targets buttons and overlays */}
+        <div className="flex gap-2 mb-2 md:hidden">
+          <button
+            type="button"
+            className="text-xs px-3 py-1 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-100 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent"
+            onClick={() => setShowParty(true)}
+          >
+            Party
+          </button>
+          <button
+            type="button"
+            className="text-xs px-3 py-1 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-100 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent"
+            onClick={() => setShowTargets(true)}
+          >
+            Targets
+          </button>
+        </div>
+        {/* Party overlay */}
+        {showParty && (
+          <div className="fixed inset-0 z-40 flex items-end md:hidden">
+            <div className="absolute inset-0 bg-black bg-opacity-60" onClick={() => setShowParty(false)} />
+            <div className="relative w-full bg-nb-400 border-t border-nb-border rounded-t-lg p-4 max-h-2/3 overflow-y-auto">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-bold text-nb-accent uppercase text-xs">Party</span>
+                <button onClick={() => setShowParty(false)} className="text-nb-subtext text-lg font-bold">×</button>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="font-mono text-nb-text text-xs mb-1">{player.name} (You) — {player.integrity}/{player.maxIntegrity}</div>
+                {party.map((member) => (
+                  <div key={member.id} className="font-mono text-nb-text text-xs">
+                    {member.name} — {member.integrity}/{member.maxIntegrity}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Targets overlay */}
+        {showTargets && (
+          <div className="fixed inset-0 z-40 flex items-end md:hidden">
+            <div className="absolute inset-0 bg-black bg-opacity-60" onClick={() => setShowTargets(false)} />
+            <div className="relative w-full bg-nb-400 border-t border-nb-border rounded-t-lg p-4 max-h-2/3 overflow-y-auto">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-bold text-nb-accent uppercase text-xs">Targets</span>
+                <button onClick={() => setShowTargets(false)} className="text-nb-subtext text-lg font-bold">×</button>
+              </div>
+              <div className="flex flex-col gap-2">
+                {encounter && encounter.enemies.length > 0 ? (
+                  encounter.enemies.map((enemy) => (
+                    <div key={enemy.id} className="font-mono text-nb-text text-xs">
+                      {enemy.name} — {enemy.integrity}/{enemy.maxIntegrity}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-nb-subtext text-xs">No targets detected.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         <form onSubmit={handleInput} className="mb-2">
-          <div className="relative">
+          <div className="relative w-full">
             <input
               ref={inputRef}
               autoFocus
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="shadow-nb-accent w-full bg-nb-500 border border-nb-border text-nb-text p-2 outline-none relative z-10 font-mono rounded-lg transition-colors hover:bg-nb-100 hover:text-nb-accent focus:ring-2 focus:ring-purple-400"
+              className="shadow-nb-accent w-full bg-nb-500 border border-nb-border text-nb-text p-2 pr-14 outline-none font-mono rounded-lg transition-colors hover:bg-nb-100 hover:text-nb-accent focus:ring-2 focus:ring-purple-400"
               placeholder=">"
-              style={{ position: 'relative', background: 'transparent' }}
+              style={{ background: 'transparent' }}
             />
+            <button
+              type="submit"
+              tabIndex={0}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-0.5 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-100 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent flex items-center z-20"
+              style={{ height: '28px' }}
+              aria-label="Submit command"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 rotate-270">
+                <path fillRule="evenodd" d="M3.293 9.293a1 1 0 011.414 0L9 13.586V4a1 1 0 112 0v9.586l4.293-4.293a1 1 0 111.414 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
             {suggestion && input && (
               <div
                 className="absolute top-0 left-0 w-full h-full flex items-center px-2 pointer-events-none select-none z-0 whitespace-pre font-mono"
@@ -442,8 +531,27 @@ export default function Terminal() {
           </div>
         </form>
         <div className="text-xs text-nb-text font-mono uppercase">
-          <div className="flex flex-wrap gap-1 items-center">available::{" "}
-            {availableList.map((item, idx) => (
+          {/* Dropdown for overflow commands (mobile only) */}
+          {showDropdown && overflowCommands.length > 0 && (
+            <div className="absolute bottom-14 left-0 w-full z-30 bg-nb-500 border border-nb-border rounded-lg shadow-lg p-2 flex flex-col gap-1 md:hidden">
+              {overflowCommands.map((item, idx) => (
+                <button
+                  key={item + idx}
+                  type="button"
+                  tabIndex={0}
+                  className="text-xs px-2 py-0.5 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-400 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent"
+                  onClick={() => {
+                    handleAvailableClick(item);
+                    setShowDropdown(false);
+                  }}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1 items-center flex-wrap md:flex-wrap pb-1 relative">available::{" "}
+            {visibleCommands.map((item, idx) => (
               <button
                 key={item + idx}
                 type="button"
@@ -454,6 +562,17 @@ export default function Terminal() {
                 {item}
               </button>
             ))}
+            {overflowCommands.length > 0 && (
+              <button
+                type="button"
+                tabIndex={0}
+                className="text-xs px-2 py-0.5 bg-nb-500 text-nb-subtext rounded font-mono uppercase border border-nb-border transition-colors hover:bg-nb-400 hover:text-nb-accent focus:outline-none focus:ring-2 focus:ring-nb-accent flex items-center md:hidden"
+                onClick={() => setShowDropdown((v) => !v)}
+                aria-label="Show more commands"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
