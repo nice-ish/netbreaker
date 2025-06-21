@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import bashArt from '/art/bash.txt?raw';
 
 
 interface Character {
@@ -299,14 +300,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
           setTimeout(() => {
             const currentOrder = get().turnOrder
-            get().pushLog(`dm:: Updated turn order: ${currentOrder.map(c => c.name).join(' → ')}`)
+            get().pushLog(`dm:: Updated turn order: ${get().turnOrder.map(c => c.name).join(' → ')}`)
           }, 3500)
 
 
           get().pushLog("dm:: Proximity breach detected. Unauthorized kinetic signature inbound…")
           setTimeout(() => get().pushLog("dm:: Reinforcement authorized by root protocol."), 2000)
+          setTimeout(() => get().pushLog(`art::${bashArt}`), 3500)
           setTimeout(() => get().pushLog("dm:: Bash // Class: Brute // has entered the field."), 3000)
           setTimeout(() => get().pushLog("dm:: Bash joined your party."), 4000)
+          setTimeout(() => get().pushLog("Bash:: SMASH!"), 3000)
         }
       }
     }
@@ -357,7 +360,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setTurnOrder: (order: Character[]) => set({ turnOrder: order }),
   getCurrentActor: () => get().turnOrder[get().currentTurnIndex],
 
-  updateEnemy: (name, changes) =>
+  updateEnemy: (name: string, changes: Partial<Character>) =>
     set((state) => {
       if (!state.encounter) return {}
       const updatedEnemies = state.encounter.enemies.map((enemy) =>

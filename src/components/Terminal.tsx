@@ -8,6 +8,12 @@ const NON_TURN_COMMANDS = new Set(["start", "status", "scan", "target", "who"])
 
 
 function LogLine({ line }: { line: string }): React.ReactElement {
+  if (line.startsWith('art::')) {
+    const art = line.substring(5);
+    // The <pre> tag is essential for preserving whitespace and line breaks
+    return <pre className="text-green-400 font-mono text-xs leading-tight">{art}</pre>;
+  }
+
   let className = ""
   let display: React.ReactNode = line
 
@@ -62,6 +68,8 @@ function LogLine({ line }: { line: string }): React.ReactElement {
     className = "text-yellow-300"
   }
 
+  // The <p> tag here was causing the ASCII art to render on a single line.
+  // By handling the 'art::' case above and returning a <pre> element, we fix this.
   return <p className={className}>{display}</p>
 }
 
@@ -105,13 +113,21 @@ export default function Terminal() {
   }>(null);
 
   // Typewriter animation effect for log
-  const typingTimeout = useRef<number | null>(null)
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (displayedLog.length === log.length) return
     setLogIsAnimating(true)
     // Animate only the latest entry
     const prev = log.slice(0, -1)
     const full = log[log.length - 1] || ""
+
+    // If it's art, don't animate, just show it and finish.
+    if (full.startsWith('art::')) {
+        setDisplayedLog([...prev, full]);
+        setTimeout(() => setLogIsAnimating(false), 50); // Short delay to ensure state update
+        return;
+    }
+    
     let i = 0
 
     // Dice roll animation detection
@@ -125,7 +141,7 @@ export default function Terminal() {
         setDisplayedLog([...prev, `${actor} rolls ${animRoll} +${mod} ...`]);
         animFrame++;
         if (animFrame < 18) {
-          typingTimeout.current = window.setTimeout(animateDice, 40 + Math.random() * 30);
+          typingTimeout.current = setTimeout(animateDice, 40 + Math.random() * 30);
         } else {
           setDisplayedLog([...prev, full]);
           setLogIsAnimating(false);
